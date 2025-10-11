@@ -9,6 +9,14 @@ const authHandler = toNodeHandler(auth);
 const loginPath = process.env.OIDC_LOGIN_PATH ?? "/login";
 const consentPath = process.env.OIDC_CONSENT_PATH ?? "/consent";
 
+const escapeHtml = (unsafe: string) =>
+  unsafe
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+
 const handleAuth = (req: Request, res: Response, next: NextFunction) => {
   req.url = req.originalUrl;
   authHandler(req, res).catch(next);
@@ -50,7 +58,7 @@ app.get(loginPath, (_req, res) => {
       </head>
       <body>
         <h1>Customize Your Login Experience</h1>
-        <p>This placeholder route confirms that <code>${loginPath}</code> is reachable. Replace it with your own UI to collect credentials or redirect users to social login flows.</p>
+        <p>This placeholder route confirms that <code>${escapeHtml(loginPath)}</code> is reachable. Replace it with your own UI to collect credentials or redirect users to social login flows.</p>
         <div class="hint">
           <p>Example enhancements you might add:</p>
           <ul>
@@ -64,16 +72,24 @@ app.get(loginPath, (_req, res) => {
 });
 
 app.get(consentPath, (req, res) => {
-  const params = new URLSearchParams();
-  for (const [key, rawValue] of Object.entries(req.query)) {
-    if (Array.isArray(rawValue)) {
-      rawValue.forEach((value) => {
-        if (value !== undefined) params.append(key, String(value));
-      });
-    } else if (rawValue !== undefined) {
-      params.append(key, String(rawValue));
-    }
-  }
+  const params = new URLSearchParams(
+    Object.entries(req.query).flatMap(([key, rawValue]) => {
+      if (Array.isArray(rawValue)) {
+        return rawValue
+          .filter((value): value is string => typeof value === "string")
+          .map((value) => [key, value] as [string, string]);
+      }
+
+      if (
+        rawValue === undefined ||
+        typeof rawValue !== "string"
+      ) {
+        return [] as [string, string][];
+      }
+
+      return [[key, rawValue]];
+    })
+  );
 
   const consentCode = params.get("consent_code") ?? "";
   const clientId = params.get("client_id") ?? "";
@@ -95,12 +111,12 @@ app.get(consentPath, (req, res) => {
         </style>
       </head>
       <body>
-        <h1>Review consent for <code>${clientId}</code></h1>
+        <h1>Review consent for <code>${escapeHtml(clientId)}</code></h1>
         <p>The client is requesting the following scopes:</p>
-        <p><code>${scope || "(none provided)"}</code></p>
+        <p><code>${escapeHtml(scope || "(none provided)")}</code></p>
         <p>This placeholder page demonstrates where you can collect user confirmation before posting to <code>/api/auth/oauth2/consent</code>.</p>
         <form id="consent-form" method="post" action="/api/auth/oauth2/consent">
-          <input type="hidden" name="consent_code" value="${consentCode}" />
+          <input type="hidden" name="consent_code" value="${escapeHtml(consentCode)}" />
           <input type="hidden" name="accept" value="true" />
           <button type="submit">Allow</button>
           <button type="button" onclick="window.history.back()">Deny</button>
@@ -113,11 +129,16 @@ app.get(consentPath, (req, res) => {
             fetch(form.action, {
               method: 'POST',
               body: new URLSearchParams(data as any),
-            }).then(() => {
-              window.close();
+            }).then((response) => {
+              if (response.ok) {
+                window.close();
+              } else {
+                console.error('Consent submission failed', response.status, response.statusText);
+                alert('Consent submission failed: ' + response.status + ' ' + response.statusText);
+              }
             }).catch((error) => {
-              console.error('Consent submission failed', error);
-              alert('Consent submission failed. Check the server logs for details.');
+              console.error('Network error during consent submission', error);
+              alert('Network error. Please check your connection and try again.');
             });
           });
         </script>
