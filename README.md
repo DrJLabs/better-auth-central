@@ -4,7 +4,7 @@ This project provisions a standalone Better Auth server backed by SQLite and pre
 
 ## Prerequisites
 
-- Node.js 20 or later (ships with `corepack`, which provides `pnpm`)
+- Node.js 22.5 or later (needed for the optional `node:sqlite` driver and ships with `corepack`, which provides `pnpm`)
 - `pnpm` (auto-enabled via `corepack enable pnpm` if necessary)
 
 ## Getting Started
