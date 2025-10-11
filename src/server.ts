@@ -14,6 +14,24 @@ const handleAuth = (req: Request, res: Response, next: NextFunction) => {
 app.all("/api/auth", handleAuth);
 app.all("/api/auth/*", handleAuth);
 
+app.get("/.well-known/oauth-authorization-server", async (_req, res, next) => {
+  try {
+    const metadata = await auth.api.getMcpOAuthConfig();
+    res.json(metadata);
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get("/.well-known/oauth-protected-resource", async (_req, res, next) => {
+  try {
+    const metadata = await auth.api.getMCPProtectedResource();
+    res.json(metadata);
+  } catch (error) {
+    next(error);
+  }
+});
+
 app.get("/healthz", (_req, res) => {
   res.json({ status: "ok" });
 });

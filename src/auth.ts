@@ -1,5 +1,7 @@
 import "dotenv/config";
 import { betterAuth } from "better-auth";
+import { jwt, mcp } from "better-auth/plugins";
+import { oidcProvider } from "better-auth/plugins/oidc-provider";
 import Database from "better-sqlite3";
 import path from "node:path";
 
@@ -14,6 +16,9 @@ if (!secret) {
 }
 
 const baseURL = process.env.BETTER_AUTH_URL ?? "http://localhost:3000";
+const loginPage = process.env.OIDC_LOGIN_PATH ?? "/login";
+const consentPage = process.env.OIDC_CONSENT_PATH ?? "/consent";
+const mcpResource = process.env.MCP_RESOURCE ?? baseURL;
 
 const googleClientId = process.env.GOOGLE_CLIENT_ID;
 const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET;
@@ -40,4 +45,17 @@ export const auth = betterAuth({
   secret,
   baseURL,
   ...(socialProviders ? { socialProviders } : {}),
+  plugins: [
+    jwt(),
+    oidcProvider({
+      loginPage,
+      consentPage,
+      allowDynamicClientRegistration: true,
+      useJWTPlugin: true,
+    }),
+    mcp({
+      loginPage,
+      resource: mcpResource,
+    }),
+  ],
 });
