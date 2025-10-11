@@ -8,7 +8,11 @@
     "build": "tsc -p tsconfig.json",
     "start": "node dist/server.js",
     "auth:generate": "pnpm exec cli generate",
-    "auth:migrate": "pnpm exec cli migrate"
+    "auth:migrate": "pnpm exec cli migrate",
+    "smoke:discovery": "node scripts/check-discovery.mjs",
+    "test": "node --test",
+    "test:watch": "node --test --watch",
+    "test:coverage": "node --test --experimental-test-coverage"
   },
   "keywords": [
     "better-auth",
@@ -30,6 +34,8 @@
     "@types/better-sqlite3": "^7.6.13",
     "@types/express": "^5.0.3",
     "@types/node": "^24.7.1",
+    "@types/supertest": "^6.0.3",
+    "supertest": "^7.1.4",
     "tsx": "^4.20.6",
     "typescript": "^5.9.3"
   }

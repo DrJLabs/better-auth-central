@@ -1,0 +1,76 @@
+name: discovery-smoke
+
+on:
+  push:
+    branches: ["main", "feat/*", "fix/*", "chore/*"]
+  pull_request:
+
+jobs:
+  smoke-test:
+    runs-on: ubuntu-latest
+    env:
+      BETTER_AUTH_SECRET: test-secret
+      BETTER_AUTH_URL: http://127.0.0.1:3000
+      BETTER_AUTH_DB_DRIVER: node
+      MCP_RESOURCE: http://127.0.0.1:3000
+      OIDC_LOGIN_PATH: /login
+      OIDC_CONSENT_PATH: /consent
+      PORT: "3000"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          check-latest: true
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build native extensions
+        run: pnpm rebuild better-sqlite3
+
+      - name: Run migrations
+        run: pnpm auth:migrate -- --yes
+
+      - name: Build
+        run: pnpm build
+
+      - name: Run discovery smoke check
+        run: |
+          set -euo pipefail
+
+          node dist/server.js &
+          SERVER_PID=$!
+          trap "kill $SERVER_PID >/dev/null 2>&1 || true" EXIT
+
+          server_ready=0
+          for _ in {1..30}; do
+            if curl -sf "${BETTER_AUTH_URL}/healthz" >/dev/null; then
+              server_ready=1
+              break
+            fi
+
+            if ! kill -0 "$SERVER_PID" 2>/dev/null; then
+              echo "Server process exited before becoming healthy" >&2
+              exit 1
+            fi
+
+            sleep 1
+          done
+
+          if [ "$server_ready" -ne 1 ]; then
+            echo "Server did not start in time" >&2
+            exit 1
+          fi
+
+          pnpm smoke:discovery
+
+          kill "$SERVER_PID"
+          wait "$SERVER_PID" 2>/dev/null || true
+          trap - EXIT
