@@ -47,7 +47,7 @@ curl -fsS "$BETTER_AUTH_URL/.well-known/oauth-authorization-server" | jq
 curl -fsS "$BETTER_AUTH_URL/.well-known/oauth-protected-resource" | jq
 ```
 
-These responses must include a `registration_endpoint`, `jwks_uri`, and the resource metadata required by MCP clients.
+These responses must include a `registration_endpoint`, `jwks_uri`, and the resource metadata required by MCP clients. If `registration_endpoint` is missing, confirm `allowDynamicClientRegistration` remains enabled in `src/auth.ts`.
 
 ## Production build
 
