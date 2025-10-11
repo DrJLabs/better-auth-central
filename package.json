@@ -8,7 +8,8 @@
     "build": "tsc -p tsconfig.json",
     "start": "node dist/server.js",
     "auth:generate": "pnpm exec cli generate",
-    "auth:migrate": "pnpm exec cli migrate"
+    "auth:migrate": "pnpm exec cli migrate",
+    "smoke:discovery": "node scripts/check-discovery.mjs"
   },
   "keywords": [
     "better-auth",

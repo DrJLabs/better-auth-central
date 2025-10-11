@@ -1,0 +1,52 @@
+name: discovery-smoke
+
+on:
+  push:
+    branches: ["main", "feat/*", "fix/*", "chore/*"]
+  pull_request:
+
+jobs:
+  smoke-test:
+    runs-on: ubuntu-latest
+    env:
+      BETTER_AUTH_SECRET: test-secret
+      BETTER_AUTH_URL: http://127.0.0.1:3000
+      MCP_RESOURCE: http://127.0.0.1:3000
+      OIDC_LOGIN_PATH: /login
+      OIDC_CONSENT_PATH: /consent
+      PORT: "3000"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: pnpm build
+
+      - name: Start server
+        run: node dist/server.js &
+
+      - name: Wait for server
+        run: |
+          for i in {1..30}; do
+            if curl -sf "${BETTER_AUTH_URL}/healthz" >/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "Server did not start in time" >&2
+          exit 1
+
+      - name: Run discovery smoke check
+        run: pnpm smoke:discovery
+
+      - name: Stop server
+        run: pkill -f "dist/server.js"
+        if: always()

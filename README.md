@@ -49,6 +49,12 @@ curl -fsS "$BETTER_AUTH_URL/.well-known/oauth-protected-resource" | jq
 
 These responses must include a `registration_endpoint`, `jwks_uri`, and the resource metadata required by MCP clients. If `registration_endpoint` is missing, confirm `allowDynamicClientRegistration` remains enabled in `src/auth.ts`.
 
+You can run the automated smoke check locally once the server is running:
+
+```bash
+pnpm smoke:discovery
+```
+
 ## Production build
 
 ```bash
@@ -64,7 +70,7 @@ BETTER_AUTH_SECRET=your-secret pnpm start
 
 ## Next Steps
 
-- Implement the login and consent pages referenced by `OIDC_LOGIN_PATH` / `OIDC_CONSENT_PATH`, then wire them to the `/api/auth/oauth2/authorize` and `/api/auth/oauth2/consent` flows.
+- Replace the placeholder login (`OIDC_LOGIN_PATH`) and consent (`OIDC_CONSENT_PATH`) pages with your production-ready experience. The current HTML responses simply acknowledge the endpoints; update them to match your auth UX and post to `/api/auth/oauth2/consent` as needed.
 - Return to the Google Cloud Console once ready to register OAuth credentials, then populate `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`.
 - Configure additional providers or auth flows by extending `src/auth.ts`.
-- Integrate this server with your MCP client or other services by pointing them at the `/api/auth` endpoints and the `.well-known` discovery URLs listed above.
+- Integrate this server with your MCP client or other services by pointing them at the `/api/auth` endpoints and the `.well-known` discovery URLs listed above. A GitHub Actions workflow (`discovery-smoke`) runs on every push/PR to keep these endpoints healthy.
