@@ -72,24 +72,23 @@ app.get(loginPath, (_req, res) => {
 });
 
 app.get(consentPath, (req, res) => {
-  const params = new URLSearchParams(
-    Object.entries(req.query).flatMap(([key, rawValue]) => {
-      if (Array.isArray(rawValue)) {
-        return rawValue
-          .filter((value): value is string => typeof value === "string")
-          .map((value) => [key, value] as [string, string]);
-      }
+  const params = new URLSearchParams();
+  for (const [key, rawValue] of Object.entries(req.query)) {
+    if (rawValue == null) {
+      continue;
+    }
 
-      if (
-        rawValue === undefined ||
-        typeof rawValue !== "string"
-      ) {
-        return [] as [string, string][];
+    if (Array.isArray(rawValue)) {
+      for (const value of rawValue) {
+        if (value != null) {
+          params.append(key, String(value));
+        }
       }
+      continue;
+    }
 
-      return [[key, rawValue]];
-    })
-  );
+    params.append(key, String(rawValue));
+  }
 
   const consentCode = params.get("consent_code") ?? "";
   const clientId = params.get("client_id") ?? "";
