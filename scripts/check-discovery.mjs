@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import assert from "node:assert/strict";
+import { pathToFileURL } from "node:url";
 
 const DEFAULT_BASE_URL = "http://127.0.0.1:3000";
 
@@ -9,12 +10,17 @@ export const fetchJson = async (path, baseURL = resolveBaseURL()) => {
   const url = new URL(path, baseURL).toString();
   const response = await fetch(url);
   assert.ok(response.ok, `Failed to fetch ${url}: ${response.status} ${response.statusText}`);
-  return response.json();
+  try {
+    return await response.json();
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(`Failed to parse JSON from ${url}: ${message}`);
+  }
 };
 
 export const ensureKeys = (object, keys, context) => {
   for (const key of keys) {
-    assert.ok(object[key], `${context} missing required key: ${key}`);
+    assert.ok(key in object, `${context} missing required key: ${key}`);
   }
 };
 
@@ -40,7 +46,7 @@ export const runDiscoverySmoke = async () => {
 const isCliInvocation = () => {
   if (!process.argv[1]) return false;
   try {
-    return import.meta.url === new URL(process.argv[1], "file://").href;
+    return import.meta.url === pathToFileURL(process.argv[1]).href;
   } catch {
     return false;
   }

@@ -1,6 +1,7 @@
 import express, { type Application, type NextFunction, type Request, type Response } from "express";
 import { toNodeHandler } from "better-auth/node";
-import { auth } from "./auth";
+import type { Server } from "node:http";
+import { auth, closeAuth } from "./auth";
 
 type AuthLike = typeof auth;
 
@@ -129,8 +130,8 @@ export const createApp = (options: CreateAppOptions = {}): Application => {
           code { background: #f3f4f6; padding: 0.2rem 0.4rem; border-radius: 0.25rem; }
           form { margin-top: 1.5rem; display: flex; gap: 1rem; }
           button { padding: 0.65rem 1.5rem; border-radius: 0.375rem; border: none; cursor: pointer; }
-          button[type="submit"] { background: #2563eb; color: #fff; }
-          button[type="button"] { background: #e5e7eb; }
+          button[data-accept="true"] { background: #2563eb; color: #fff; }
+          button[data-accept="false"] { background: #e5e7eb; }
         </style>
       </head>
       <body>
@@ -140,34 +141,52 @@ export const createApp = (options: CreateAppOptions = {}): Application => {
         <p>This placeholder page demonstrates where you can collect user confirmation before posting to <code>/api/auth/oauth2/consent</code>.</p>
         <form id="consent-form" method="post" action="/api/auth/oauth2/consent">
           <input type="hidden" name="consent_code" value="${escapedConsentCode}" />
-          <input type="hidden" name="accept" value="true" />
-          <button type="submit">Allow</button>
-          <button type="button" onclick="window.history.back()">Deny</button>
+          <input id="consent-accept" type="hidden" name="accept" value="true" />
+          <button type="button" data-accept="true">Allow</button>
+          <button type="button" data-accept="false">Deny</button>
         </form>
         <script>
-          document.getElementById('consent-form').addEventListener('submit', (event) => {
-            event.preventDefault();
-            const form = event.currentTarget;
-            const data = new FormData(form);
+          (function () {
+            const form = document.getElementById('consent-form');
+            const acceptInput = document.getElementById('consent-accept');
+            if (!form || !acceptInput) {
+              return;
+            }
 
-            fetch(form.action, {
-              method: 'POST',
-              body: new URLSearchParams(data),
-            })
-              .then((response) => {
-                if (response.ok) {
-                  window.close();
-                  return;
-                }
+            form.addEventListener('click', (event) => {
+              const target = event.target;
+              if (!(target instanceof HTMLElement)) {
+                return;
+              }
 
-                console.error('Consent submission failed', response.status, response.statusText);
-                alert('Consent submission failed: ' + response.status + ' ' + response.statusText);
+              const button = target.closest('button[data-accept]');
+              if (!button) {
+                return;
+              }
+
+              event.preventDefault();
+              acceptInput.value = button.getAttribute('data-accept') === 'false' ? 'false' : 'true';
+              const data = new FormData(form);
+
+              fetch(form.action, {
+                method: 'POST',
+                body: new URLSearchParams(data),
               })
-              .catch((error) => {
-                console.error('Network error during consent submission', error);
-                alert('Network error. Please check your connection and try again.');
-              });
-          });
+                .then((response) => {
+                  if (response.ok) {
+                    window.close();
+                    return;
+                  }
+
+                  console.error('Consent submission failed', response.status, response.statusText);
+                  alert('Consent submission failed: ' + response.status + ' ' + response.statusText);
+                })
+                .catch((error) => {
+                  console.error('Network error during consent submission', error);
+                  alert('Network error. Please check your connection and try again.');
+                });
+            });
+          })();
         </script>
       </body>
     </html>`);
@@ -180,14 +199,68 @@ export const createApp = (options: CreateAppOptions = {}): Application => {
   return app;
 };
 
-export const startServer = () => {
+type StartedServer = Server & { shutdown: (signal?: NodeJS.Signals) => void };
+
+export const startServer = (): StartedServer => {
   const app = createApp();
   const port = Number.parseInt(process.env.PORT ?? "3000", 10);
   const server = app.listen(port, () => {
     console.log(`Better Auth server listening on http://localhost:${port}`);
   });
 
-  return server;
+  let shuttingDown = false;
+  let authClosed = false;
+
+  const closeAuthResources = () => {
+    if (authClosed) {
+      return;
+    }
+
+    try {
+      closeAuth();
+      authClosed = true;
+    } catch (error) {
+      console.error("Error closing Better Auth resources", error);
+      if (process.exitCode === undefined) {
+        process.exitCode = 1;
+      }
+    }
+  };
+
+  const shutdown = (signal?: NodeJS.Signals) => {
+    if (shuttingDown) {
+      return;
+    }
+
+    shuttingDown = true;
+
+    if (signal) {
+      console.log(`Received ${signal}, shutting down gracefully...`);
+    }
+
+    server.close((error) => {
+      if (error) {
+        console.error("Error closing HTTP server", error);
+        if (process.exitCode === undefined) {
+          process.exitCode = 1;
+        }
+      }
+
+      closeAuthResources();
+
+      if (signal) {
+        process.exit();
+      }
+    });
+  };
+
+  server.on("close", closeAuthResources);
+
+  for (const signal of ["SIGINT", "SIGTERM"] as const) {
+    process.once(signal, () => shutdown(signal));
+  }
+
+  return Object.assign(server as StartedServer, { shutdown });
 };
 
 if (require.main === module) {

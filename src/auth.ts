@@ -7,6 +7,7 @@ import path from "node:path";
 
 const databasePath = path.resolve(process.cwd(), "better-auth.sqlite");
 const sqlite = new Database(databasePath);
+let databaseClosed = false;
 
 const secret = process.env.BETTER_AUTH_SECRET;
 if (!secret) {
@@ -59,3 +60,12 @@ export const auth = betterAuth({
     }),
   ],
 });
+
+export const closeAuth = () => {
+  if (databaseClosed) {
+    return;
+  }
+
+  sqlite.close();
+  databaseClosed = true;
+};
