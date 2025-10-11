@@ -57,8 +57,7 @@ export const createApp = (options: CreateAppOptions = {}): Application => {
     authHandler(req, res).catch(next);
   };
 
-  app.all("/api/auth", handleAuth);
-  app.all("/api/auth/*", handleAuth);
+  app.use("/api/auth", handleAuth);
 
   app.get("/.well-known/oauth-authorization-server", async (_req, res, next) => {
     try {

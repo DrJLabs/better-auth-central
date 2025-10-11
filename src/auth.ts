@@ -3,10 +3,21 @@ import { betterAuth } from "better-auth";
 import { jwt, mcp } from "better-auth/plugins";
 import { oidcProvider } from "better-auth/plugins/oidc-provider";
 import Database from "better-sqlite3";
+import { DatabaseSync } from "node:sqlite";
 import path from "node:path";
 
 const databasePath = path.resolve(process.cwd(), "better-auth.sqlite");
-const sqlite = new Database(databasePath);
+const driver = process.env.BETTER_AUTH_DB_DRIVER ?? "better-sqlite3";
+
+if (driver !== "better-sqlite3" && driver !== "node") {
+  throw new Error(
+    `Unsupported BETTER_AUTH_DB_DRIVER value "${driver}". Use "better-sqlite3" or "node".`,
+  );
+}
+
+const sqlite =
+  driver === "node" ? new DatabaseSync(databasePath) : new Database(databasePath);
+
 let databaseClosed = false;
 
 const secret = process.env.BETTER_AUTH_SECRET;

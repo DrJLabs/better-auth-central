@@ -11,6 +11,7 @@ jobs:
     env:
       BETTER_AUTH_SECRET: test-secret
       BETTER_AUTH_URL: http://127.0.0.1:3000
+      BETTER_AUTH_DB_DRIVER: node
       MCP_RESOURCE: http://127.0.0.1:3000
       OIDC_LOGIN_PATH: /login
       OIDC_CONSENT_PATH: /consent
@@ -29,7 +30,7 @@ jobs:
         run: pnpm rebuild better-sqlite3
 
       - name: Run migrations
-        run: pnpm auth:migrate
+        run: pnpm auth:migrate -- --yes
 
       - name: Build
         run: pnpm build

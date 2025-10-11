@@ -2,6 +2,8 @@ import { before, beforeEach, describe, it, mock } from "node:test";
 import assert from "node:assert/strict";
 import request from "supertest";
 
+process.env.BETTER_AUTH_DB_DRIVER = process.env.BETTER_AUTH_DB_DRIVER ?? "node";
+
 let createApp;
 
 const importApp = async () => {

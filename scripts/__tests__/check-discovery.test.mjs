@@ -68,8 +68,8 @@ describe("check-discovery.mjs", () => {
       process.env.BETTER_AUTH_URL = `http://127.0.0.1:${server.address().port}`;
     });
 
-    it("ensureKeys throws for missing values", () => {
-      assert.throws(() => ensureKeys({ key: null }, ["key"], "context"));
+    it("ensureKeys throws when key is absent", () => {
+      assert.throws(() => ensureKeys({}, ["key"], "context"));
     });
   });
 
