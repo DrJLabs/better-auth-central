@@ -44,6 +44,8 @@ const buildParams = (query: Request["query"]): URLSearchParams => {
 
 export const createApp = (options: CreateAppOptions = {}): Application => {
   const app = express();
+  // behind Traefik/HTTPS; trust X-Forwarded-* so secure cookies & redirects work
+  app.set("trust proxy", 1);
 
   const authInstance = options.authInstance ?? auth;
   const authApi = authInstance.api;
