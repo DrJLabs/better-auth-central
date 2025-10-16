@@ -1,0 +1,15 @@
+{
+  "parts": [
+    {
+      "part_id": "core-service",
+      "project_type": "backend",
+      "root": "src/",
+      "key_files": [
+        "src/server.ts",
+        "src/auth.ts"
+      ],
+      "notes": "Express 5 API backed by Better Auth and SQLite"
+    }
+  ],
+  "repository_type": "monolith"
+}

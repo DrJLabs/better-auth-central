@@ -1,0 +1,7 @@
+{
+  "database": {
+    "type": "SQLite",
+    "library": "better-sqlite3",
+    "location": "better-auth.sqlite"
+  }
+}

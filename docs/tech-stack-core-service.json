@@ -1,0 +1,7 @@
+{
+  "language": "TypeScript",
+  "runtime": "Node.js",
+  "framework": "Express",
+  "auth_library": "Better Auth",
+  "database": "better-sqlite3"
+}

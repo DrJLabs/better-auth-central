@@ -1,0 +1,34 @@
+{
+  "endpoints": [
+    {
+      "method": "GET",
+      "path": "/.well-known/oauth-authorization-server",
+      "purpose": "Expose Better Auth OAuth configuration",
+      "auth": "public"
+    },
+    {
+      "method": "GET",
+      "path": "/.well-known/oauth-protected-resource",
+      "purpose": "Expose MCP protected resource metadata",
+      "auth": "public"
+    },
+    {
+      "method": "GET",
+      "path": "{loginPath}",
+      "purpose": "Render customizable login UI placeholder",
+      "auth": "public"
+    },
+    {
+      "method": "GET",
+      "path": "{consentPath}",
+      "purpose": "Render consent collection form for Better Auth",
+      "auth": "public"
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/oauth2/consent",
+      "purpose": "Handle consent decisions submitted from placeholder UI",
+      "auth": "auth flow"
+    }
+  ]
+}

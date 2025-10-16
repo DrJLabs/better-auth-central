@@ -1,0 +1,7 @@
+{
+  "name": "core-service",
+  "description": "Express API exposing Better Auth endpoints for OAuth flows",
+  "tech_stack_file": "tech-stack-core-service.json",
+  "entry_point": "src/server.ts",
+  "tests": "src/__tests__"
+}

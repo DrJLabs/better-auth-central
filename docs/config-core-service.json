@@ -1,0 +1,8 @@
+{
+  "env_files": [
+    ".env.example"
+  ],
+  "trusted_proxy": true,
+  "login_path_default": "/login",
+  "consent_path_default": "/consent"
+}
