@@ -77,8 +77,6 @@ try {
       const registrableDomain = getDomain(url.hostname, { allowPrivateDomains: true });
       if (registrableDomain) {
         cookieDomain = `.${registrableDomain}`;
-      } else {
-        cookieDomain = `.${url.hostname}`;
       }
     }
   } else if (cookieDomain) {

@@ -133,6 +133,15 @@ describe("server", () => {
   });
 
   describe("/login", () => {
+    it("allows requests without an Origin header", async () => {
+      const response = await request(app)
+        .get("/login")
+        .expect(200)
+        .expect("Content-Type", /html/);
+
+      assert.ok(response.text.includes("Welcome to Better Auth"));
+    });
+
     it("renders the enhanced login page", async () => {
       const response = await request(app)
         .get("/login")

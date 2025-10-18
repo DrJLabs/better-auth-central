@@ -52,13 +52,18 @@ export const runDiscoverySmoke = async (baseURL) => {
 };
 
 const parseCliBaseUrl = (argv) => {
-  for (const arg of argv) {
+  for (let index = 0; index < argv.length; index += 1) {
+    const arg = argv[index];
     if (arg.startsWith("--base-url=")) {
-      return arg.slice("--base-url=".length);
+      const value = arg.slice("--base-url=".length);
+      return value.length > 0 ? value : undefined;
     }
     if (arg === "--base-url") {
-      const index = argv.indexOf(arg);
-      return argv[index + 1];
+      const value = argv[index + 1];
+      if (value && !value.startsWith("--")) {
+        return value;
+      }
+      return undefined;
     }
   }
   return undefined;
