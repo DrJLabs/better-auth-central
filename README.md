@@ -20,6 +20,7 @@ This project provisions a standalone Better Auth server backed by SQLite and pre
    - `BETTER_AUTH_SECRET`: random string used for token signing.
    - `BETTER_AUTH_URL`: public URL where this server is accessible.
    - `BETTER_AUTH_DB_DRIVER`: database driver (`better-sqlite3` for production, or `node` to use Node's built-in SQLite module when native builds aren't available).
+   - `BETTER_AUTH_TRUSTED_ORIGINS`: optional comma-separated list of additional origins allowed to call the server (for example, staging Todo clients). The defaults already include localhost, `https://todo.onemainarmy.com`, and `https://auth.onemainarmy.com`.
    - `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`: obtained from Google Cloud Console. Leave empty initially if you plan to wire them in later.
    - `OIDC_LOGIN_PATH`: path to the login UI that should handle OIDC `prompt=login` flows (defaults to `/login`).
    - `OIDC_CONSENT_PATH`: path that renders a consent screen and posts to `/api/auth/oauth2/consent` (defaults to `/consent`).
@@ -56,6 +57,12 @@ You can run the automated smoke check locally once the server is running:
 pnpm smoke:discovery
 ```
 
+To verify the hosted deployment, supply the production base URL:
+
+```bash
+pnpm smoke:discovery -- --base-url=https://auth.onemainarmy.com
+```
+
 ## Production build
 
 ```bash
@@ -71,7 +78,7 @@ BETTER_AUTH_SECRET=your-secret pnpm start
 
 ## Next Steps
 
-- Replace the placeholder login (`OIDC_LOGIN_PATH`) and consent (`OIDC_CONSENT_PATH`) pages with your production-ready experience. The current HTML responses simply acknowledge the endpoints; update them to match your auth UX and post to `/api/auth/oauth2/consent` as needed.
+- Customise the login (`OIDC_LOGIN_PATH`) and consent (`OIDC_CONSENT_PATH`) templates in `src/ui/loginPage.ts` and `src/ui/consentPage.ts` to reflect your branding or additional flows. The defaults now expose a Google sign-in CTA and a consent experience ready for immediate use.
 - Return to the Google Cloud Console once ready to register OAuth credentials, then populate `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`.
 - Configure additional providers or auth flows by extending `src/auth.ts`.
 - Integrate this server with your MCP client or other services by pointing them at the `/api/auth` endpoints and the `.well-known` discovery URLs listed above. A GitHub Actions workflow (`discovery-smoke`) runs on every push/PR to keep these endpoints healthy. Set `BETTER_AUTH_DB_DRIVER=node` in CI or other environments where compiling `better-sqlite3` is not desirable; production should continue using the default `better-sqlite3` driver for performance.

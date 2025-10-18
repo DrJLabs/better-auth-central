@@ -4,7 +4,13 @@ import { pathToFileURL } from "node:url";
 
 const DEFAULT_BASE_URL = "http://127.0.0.1:3000";
 
-export const resolveBaseURL = () => process.env.BETTER_AUTH_URL ?? DEFAULT_BASE_URL;
+export const resolveBaseURL = (override) => {
+  if (override) {
+    return override;
+  }
+
+  return process.env.BETTER_AUTH_URL ?? DEFAULT_BASE_URL;
+};
 
 export const fetchJson = async (path, baseURL = resolveBaseURL()) => {
   const url = new URL(path, baseURL).toString();
@@ -24,16 +30,18 @@ export const ensureKeys = (object, keys, context) => {
   }
 };
 
-export const runDiscoverySmoke = async () => {
-  const baseURL = resolveBaseURL();
-  const discovery = await fetchJson("/.well-known/oauth-authorization-server", baseURL);
+export const runDiscoverySmoke = async (baseURL) => {
+  const target = resolveBaseURL(baseURL);
+  console.log(`Running discovery smoke check against ${target}`);
+
+  const discovery = await fetchJson("/.well-known/oauth-authorization-server", target);
   ensureKeys(
     discovery,
     ["issuer", "jwks_uri", "registration_endpoint", "authorization_endpoint", "token_endpoint"],
     "OIDC discovery",
   );
 
-  const protectedResource = await fetchJson("/.well-known/oauth-protected-resource", baseURL);
+  const protectedResource = await fetchJson("/.well-known/oauth-protected-resource", target);
   ensureKeys(
     protectedResource,
     ["resource", "authorization_servers", "jwks_uri", "scopes_supported"],
@@ -41,6 +49,19 @@ export const runDiscoverySmoke = async () => {
   );
 
   console.log("Discovery smoke check passed");
+};
+
+const parseCliBaseUrl = (argv) => {
+  for (const arg of argv) {
+    if (arg.startsWith("--base-url=")) {
+      return arg.slice("--base-url=".length);
+    }
+    if (arg === "--base-url") {
+      const index = argv.indexOf(arg);
+      return argv[index + 1];
+    }
+  }
+  return undefined;
 };
 
 const isCliInvocation = () => {
@@ -53,7 +74,8 @@ const isCliInvocation = () => {
 };
 
 if (isCliInvocation()) {
-  runDiscoverySmoke().catch((error) => {
+  const cliBaseUrl = parseCliBaseUrl(process.argv.slice(2));
+  runDiscoverySmoke(cliBaseUrl).catch((error) => {
     console.error(error);
     process.exitCode = 1;
   });

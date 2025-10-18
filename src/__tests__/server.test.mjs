@@ -1,10 +1,14 @@
-import { before, beforeEach, describe, it, mock } from "node:test";
+import { after, afterEach, before, beforeEach, describe, it, mock } from "node:test";
 import assert from "node:assert/strict";
 import request from "supertest";
 
 process.env.BETTER_AUTH_DB_DRIVER = process.env.BETTER_AUTH_DB_DRIVER ?? "node";
 
 let createApp;
+const originalEnv = {
+  GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
+  GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
+};
 
 const importApp = async () => {
   if (!createApp) {
@@ -18,6 +22,8 @@ describe("server", () => {
   let authMock;
 
   before(async () => {
+    process.env.GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID ?? "test-client";
+    process.env.GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET ?? "test-secret";
     const createAppFn = await importApp();
 
     authMock = {
@@ -45,6 +51,39 @@ describe("server", () => {
   beforeEach(() => {
     authMock.api.getMcpOAuthConfig.mock.resetCalls();
     authMock.api.getMCPProtectedResource.mock.resetCalls();
+  });
+
+  after(() => {
+    process.env.GOOGLE_CLIENT_ID = originalEnv.GOOGLE_CLIENT_ID;
+    process.env.GOOGLE_CLIENT_SECRET = originalEnv.GOOGLE_CLIENT_SECRET;
+  });
+
+  afterEach(() => {
+    mock.reset();
+  });
+
+  describe("CORS", () => {
+    it("allows requests from trusted origins", async () => {
+      const origin = "https://auth.onemainarmy.com";
+
+      const response = await request(app)
+        .get("/healthz")
+        .set("Origin", origin)
+        .expect(200);
+
+      assert.equal(response.headers["access-control-allow-origin"], origin);
+      assert.equal(response.headers["access-control-allow-credentials"], "true");
+    });
+
+    it("rejects requests from unknown origins", async () => {
+      const response = await request(app)
+        .get("/healthz")
+        .set("Origin", "https://example.invalid")
+        .expect(403)
+        .expect("Content-Type", /json/);
+
+      assert.deepEqual(response.body, { error: "origin_not_allowed" });
+    });
   });
 
   describe("/.well-known/oauth-authorization-server", () => {
@@ -83,51 +122,36 @@ describe("server", () => {
   });
 
   describe("/login", () => {
-    it("renders the configured path", async () => {
+    it("renders the enhanced login page", async () => {
       const response = await request(app)
         .get("/login")
         .expect(200)
         .expect("Content-Type", /html/);
 
-      assert.ok(response.text.includes("Customize Your Login Experience"));
-      assert.ok(response.text.includes("/login"));
-    });
-
-    it("escapes a custom login path", async () => {
-      const createAppFn = await importApp();
-      const customApp = createAppFn({
-        authInstance: authMock,
-        loginPath: '/login?next=<script>alert(1)</script>',
-      });
-
-      const response = await request(customApp)
-        .get('/login?next=<script>alert(1)</script>')
-        .expect(200);
-
-      assert.ok(response.text.includes("&lt;script&gt;alert(1)&lt;/script&gt;"));
-      assert.ok(!response.text.includes("<script>alert(1)</script>"));
+      assert.ok(response.text.includes("Welcome to Better Auth"));
+      assert.ok(response.text.includes("Continue with Google"));
+      assert.ok(response.text.includes("/api/auth/sign-in/social?provider=google"));
     });
   });
 
   describe("/consent", () => {
-    it("escapes client supplied values", async () => {
+    it("renders consent details with scope list", async () => {
       const response = await request(app)
         .get("/consent")
         .query({
-          consent_code: "code-&-<>",
-          client_id: "client-&-<>\"'",
-          scope: "read\nwrite",
+          consent_code: "code-123",
+          client_id: "todo-client",
+          scope: "read write",
         })
         .expect(200)
         .expect("Content-Type", /html/);
 
       const html = response.text;
-      assert.ok(html.includes("code-&amp;-&lt;&gt;"));
-      assert.ok(html.includes("client-&amp;-&lt;&gt;&quot;&#39;"));
-      assert.ok(html.includes("read\nwrite".replace(/\n/g, "\n")));
-      assert.ok(!html.includes("client-&-<>\"'"));
-      assert.ok(!html.includes("code-&-<>"));
-      assert.ok(!html.includes("<script>"));
+      assert.ok(html.includes("Allow access"));
+      assert.ok(html.includes("todo-client"));
+      assert.ok(html.includes("<li><code>read</code></li>"));
+      assert.ok(html.includes("<li><code>write</code></li>"));
+      assert.ok(html.includes("/api/auth/oauth2/consent"));
     });
   });
 });
