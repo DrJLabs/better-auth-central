@@ -2,6 +2,7 @@ import express, {
   type Application,
   type NextFunction,
   type Request as ExpressRequest,
+  type RequestHandler,
   type Response as ExpressResponse,
 } from "express";
 import cors, { type CorsOptions } from "cors";
@@ -23,29 +24,6 @@ export interface CreateAppOptions {
   loginPath?: string;
   consentPath?: string;
 }
-
-const buildParams = (query: ExpressRequest["query"]): URLSearchParams => {
-  const params = new URLSearchParams();
-
-  for (const [key, rawValue] of Object.entries(query)) {
-    if (rawValue == null) {
-      continue;
-    }
-
-    if (Array.isArray(rawValue)) {
-      for (const value of rawValue) {
-        if (value != null) {
-          params.append(key, String(value));
-        }
-      }
-      continue;
-    }
-
-    params.append(key, String(rawValue));
-  }
-
-  return params;
-};
 
 const sendFetchResponse = async (
   fetchResponse: globalThis.Response,
@@ -69,6 +47,8 @@ const sendFetchResponse = async (
     return;
   }
 
+  // Node's stream helpers expect the node:stream/web ReadableStream variant; cast is
+  // necessary because fetchResponse.body is typed via DOM lib definitions.
   const nodeStream = Readable.fromWeb(body as unknown as NodeReadableStream);
 
   try {
@@ -108,6 +88,8 @@ const createFetchRequest = (req: ExpressRequest, baseUrl: string): globalThis.Re
   };
 
   if (hasBody) {
+    // Express' request implements the Node readable stream interface; casting keeps the duplex
+    // hint intact so undici can consume the stream when bridging to Fetch.
     requestInit.body = req as unknown as BodyInit;
     requestInit.duplex = "half";
   }
@@ -176,7 +158,7 @@ export const createApp = (options: CreateAppOptions = {}): Application => {
 
   const authHandler = toNodeHandler(authInstance);
 
-  const handleAuth = (req: ExpressRequest, res: ExpressResponse, next: NextFunction) => {
+  const handleAuth: RequestHandler = (req, res, next) => {
     req.url = req.originalUrl;
     authHandler(req, res).catch(next);
   };
@@ -195,6 +177,11 @@ export const createApp = (options: CreateAppOptions = {}): Application => {
 
   app.get(loginPath, (_req, res) => {
     res
+      .set("X-Frame-Options", "DENY")
+      .set(
+        "Content-Security-Policy",
+        "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; frame-ancestors 'none'",
+      )
       .type("html")
       .send(
         renderLoginPage({
@@ -206,7 +193,7 @@ export const createApp = (options: CreateAppOptions = {}): Application => {
   });
 
   app.get(consentPath, (req, res) => {
-    const params = buildParams(req.query);
+    const params = new URL(req.originalUrl, baseURL).searchParams;
 
     const consentCode = params.get("consent_code") ?? "";
     const clientId = params.get("client_id") ?? "";
@@ -218,6 +205,11 @@ export const createApp = (options: CreateAppOptions = {}): Application => {
       .filter((item) => item.length > 0);
 
     res
+      .set("X-Frame-Options", "DENY")
+      .set(
+        "Content-Security-Policy",
+        "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; frame-ancestors 'none'",
+      )
       .type("html")
       .send(
         renderConsentPage({

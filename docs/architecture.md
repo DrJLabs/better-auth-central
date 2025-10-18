@@ -34,7 +34,8 @@ This service is a single-process backend monolith. Express handles HTTP requests
 ## Component Overview
 
 - `createApp()` constructs Express app, configures middleware, and registers routes.
-- HTML route handlers sanitize user inputs via `escapeHtml` and `buildParams` helpers.
+- HTML route handlers sanitize user inputs via `escapeHtml` and parsing query
+  parameters from `req.originalUrl` with the WHATWG `URL` API.
 - Tests in `src/__tests__/server.test.mjs` verify JSON endpoints and escaping behavior.
 
 ## Source Tree Summary
