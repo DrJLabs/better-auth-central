@@ -1,6 +1,12 @@
-import express, { type Application, type NextFunction, type Request, type Response } from "express";
+import express, {
+  type Application,
+  type NextFunction,
+  type Request as ExpressRequest,
+  type Response as ExpressResponse,
+} from "express";
 import cors, { type CorsOptions } from "cors";
 import { toNodeHandler } from "better-auth/node";
+import { oAuthDiscoveryMetadata, oAuthProtectedResourceMetadata } from "better-auth/plugins";
 import type { Server } from "node:http";
 import { resolveAllowedOrigins } from "./config/origins";
 import { renderConsentPage } from "./ui/consentPage";
@@ -15,7 +21,7 @@ export interface CreateAppOptions {
   consentPath?: string;
 }
 
-const buildParams = (query: Request["query"]): URLSearchParams => {
+const buildParams = (query: ExpressRequest["query"]): URLSearchParams => {
   const params = new URLSearchParams();
 
   for (const [key, rawValue] of Object.entries(query)) {
@@ -37,6 +43,61 @@ const buildParams = (query: Request["query"]): URLSearchParams => {
 
   return params;
 };
+
+const sendFetchResponse = async (fetchResponse: Response, res: ExpressResponse) => {
+  res.status(fetchResponse.status);
+
+  fetchResponse.headers.forEach((value, key) => {
+    res.setHeader(key, value);
+  });
+
+  const payload = await fetchResponse.text();
+  if (payload.length > 0) {
+    res.send(payload);
+    return;
+  }
+
+  res.end();
+};
+
+const createFetchRequest = (req: ExpressRequest, baseUrl: string): Request => {
+  const url = new URL(req.originalUrl, baseUrl);
+  const headers = new Headers();
+
+  for (const [key, value] of Object.entries(req.headers)) {
+    if (value == null) {
+      continue;
+    }
+
+    if (Array.isArray(value)) {
+      for (const item of value) {
+        headers.append(key, item);
+      }
+      continue;
+    }
+
+    headers.set(key, value);
+  }
+
+  return new Request(url, {
+    method: req.method,
+    headers,
+  });
+};
+
+const adaptFetchHandler =
+  (
+    handler: (request: Request) => Promise<Response>,
+    baseUrl: string,
+  ): ((req: ExpressRequest, res: ExpressResponse, next: NextFunction) => void) =>
+  async (req, res, next) => {
+    try {
+      const fetchResponse = await handler(createFetchRequest(req, baseUrl));
+      await sendFetchResponse(fetchResponse, res);
+    } catch (error) {
+      next(error);
+    }
+  };
 
 export const createApp = (options: CreateAppOptions = {}): Application => {
   const app = express();
@@ -66,7 +127,7 @@ export const createApp = (options: CreateAppOptions = {}): Application => {
   const corsMiddleware = cors(corsOptions);
   app.use(corsMiddleware);
 
-  app.use((error: unknown, _req: Request, res: Response, next: NextFunction) => {
+  app.use((error: unknown, _req: ExpressRequest, res: ExpressResponse, next: NextFunction) => {
     if (error instanceof Error && error.message === "origin_not_allowed") {
       res.status(403).json({ error: "origin_not_allowed" });
       return;
@@ -76,7 +137,6 @@ export const createApp = (options: CreateAppOptions = {}): Application => {
   });
 
   const authInstance = options.authInstance ?? auth;
-  const authApi = authInstance.api;
   const loginPath = options.loginPath ?? process.env.OIDC_LOGIN_PATH ?? "/login";
   const consentPath = options.consentPath ?? process.env.OIDC_CONSENT_PATH ?? "/consent";
   const baseURL = process.env.BETTER_AUTH_URL ?? "http://localhost:3000";
@@ -86,30 +146,22 @@ export const createApp = (options: CreateAppOptions = {}): Application => {
 
   const authHandler = toNodeHandler(authInstance);
 
-  const handleAuth = (req: Request, res: Response, next: NextFunction) => {
+  const handleAuth = (req: ExpressRequest, res: ExpressResponse, next: NextFunction) => {
     req.url = req.originalUrl;
     authHandler(req, res).catch(next);
   };
 
   app.use("/api/auth", handleAuth);
 
-  app.get("/.well-known/oauth-authorization-server", async (_req, res, next) => {
-    try {
-      const metadata = await authApi.getMcpOAuthConfig();
-      res.json(metadata);
-    } catch (error) {
-      next(error);
-    }
-  });
+  const discoveryHandler = adaptFetchHandler(oAuthDiscoveryMetadata(authInstance), baseURL);
+  const protectedResourceHandler = adaptFetchHandler(
+    oAuthProtectedResourceMetadata(authInstance),
+    baseURL,
+  );
 
-  app.get("/.well-known/oauth-protected-resource", async (_req, res, next) => {
-    try {
-      const metadata = await authApi.getMCPProtectedResource();
-      res.json(metadata);
-    } catch (error) {
-      next(error);
-    }
-  });
+  app.get("/.well-known/oauth-authorization-server", discoveryHandler);
+
+  app.get("/.well-known/oauth-protected-resource", protectedResourceHandler);
 
   app.get(loginPath, (_req, res) => {
     res
