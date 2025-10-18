@@ -53,7 +53,8 @@ export const createApp = (options: CreateAppOptions = {}): Application => {
         return;
       }
 
-      callback(null, false);
+      const error = new Error("origin_not_allowed");
+      callback(error);
     },
     credentials: true,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
@@ -65,17 +66,13 @@ export const createApp = (options: CreateAppOptions = {}): Application => {
   const corsMiddleware = cors(corsOptions);
   app.use(corsMiddleware);
 
-  app.use((req: Request, res: Response, next: NextFunction) => {
-    const originHeader = req.headers.origin;
-    const origin = Array.isArray(originHeader) ? originHeader[0] : originHeader;
-
-    if (origin && !allowedOriginSet.has(origin)) {
-      console.warn(`Rejecting request from disallowed origin: ${origin}`);
+  app.use((error: unknown, _req: Request, res: Response, next: NextFunction) => {
+    if (error instanceof Error && error.message === "origin_not_allowed") {
       res.status(403).json({ error: "origin_not_allowed" });
       return;
     }
 
-    next();
+    next(error as Error);
   });
 
   const authInstance = options.authInstance ?? auth;
