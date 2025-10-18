@@ -3,6 +3,8 @@ import assert from "node:assert/strict";
 import { pathToFileURL } from "node:url";
 
 const DEFAULT_BASE_URL = "http://127.0.0.1:3000";
+const DEFAULT_TIMEOUT_MS = Number.parseInt(process.env.DISCOVERY_TIMEOUT_MS ?? "10000", 10);
+const DISCOVERY_TIMEOUT_MS = Number.isNaN(DEFAULT_TIMEOUT_MS) ? 10000 : DEFAULT_TIMEOUT_MS;
 
 export const resolveBaseURL = (override) => {
   if (override) {
@@ -14,7 +16,15 @@ export const resolveBaseURL = (override) => {
 
 export const fetchJson = async (path, baseURL = resolveBaseURL()) => {
   const url = new URL(path, baseURL).toString();
-  const response = await fetch(url);
+  let response;
+  try {
+    response = await fetch(url, { signal: AbortSignal.timeout(DISCOVERY_TIMEOUT_MS) });
+  } catch (error) {
+    if (error instanceof Error && (error.name === "AbortError" || error.name === "TimeoutError")) {
+      throw new Error(`Timed out fetching ${url} after ${DISCOVERY_TIMEOUT_MS}ms`);
+    }
+    throw error;
+  }
   assert.ok(response.ok, `Failed to fetch ${url}: ${response.status} ${response.statusText}`);
   try {
     return await response.json();

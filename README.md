@@ -22,6 +22,7 @@ This project provisions a standalone Better Auth server backed by SQLite and pre
    - `BETTER_AUTH_DB_DRIVER`: database driver (`better-sqlite3` for production, or `node` to use Node's built-in SQLite module when native builds aren't available).
    - `BETTER_AUTH_TRUSTED_ORIGINS`: optional comma-separated list of additional origins allowed to call the server (for example, staging Todo clients). The defaults already include `http://localhost:5173`, `http://localhost:3000`, `https://todo.onemainarmy.com`, and `https://auth.onemainarmy.com`.
    - `BETTER_AUTH_COOKIE_DOMAIN`: optional registrable parent domain (for example, `.onemainarmy.com`) used when issuing HTTPS cookies so sessions can be shared across sibling subdomains.
+   - `DISCOVERY_TIMEOUT_MS`: optional timeout (in milliseconds) for the discovery smoke checks; defaults to `10000` if unset.
    - `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`: obtained from Google Cloud Console. Leave empty initially if you plan to wire them in later.
    - `OIDC_LOGIN_PATH`: path to the login UI that should handle OIDC `prompt=login` flows (defaults to `/login`).
    - `OIDC_CONSENT_PATH`: path that renders a consent screen and posts to `/api/auth/oauth2/consent` (defaults to `/consent`).

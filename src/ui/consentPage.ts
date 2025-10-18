@@ -1,10 +1,4 @@
-const escapeHtml = (value: string): string =>
-  value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
+import { escapeHtml } from "./html";
 
 interface ConsentPageOptions {
   consentCode: string;
@@ -132,6 +126,7 @@ export const renderConsentPage = ({
       <footer>
         Need help? Contact your workspace administrator or revoke access from your Better Auth dashboard.
       </footer>
+    </main>
   </body>
 </html>`;
 };

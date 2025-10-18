@@ -10,8 +10,11 @@
     "auth:generate": "pnpm exec cli generate",
     "auth:migrate": "pnpm exec cli migrate",
     "smoke:discovery": "node scripts/check-discovery.mjs",
+    "pretest": "pnpm run build",
     "test": "node --test",
+    "pretest:watch": "pnpm run build",
     "test:watch": "node --test --watch",
+    "pretest:coverage": "pnpm run build",
     "test:coverage": "node --test --experimental-test-coverage"
   },
   "keywords": [

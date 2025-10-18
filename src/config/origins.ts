@@ -25,8 +25,7 @@ const toOrigin = (url: string | undefined): string | null => {
 
   try {
     return new URL(url).origin;
-  } catch (error) {
-    console.warn(`Invalid URL provided when deriving origin: ${url}`);
+  } catch {
     return null;
   }
 };
@@ -60,13 +59,22 @@ export const resolveAllowedOrigins = (baseURL?: string): AllowedOrigin[] => {
   return Array.from(origins);
 };
 
+let cachedAllowedOrigins: string[] | null = null;
+
 export const isAllowedOrigin = (origin: string | undefined): boolean => {
   if (!origin) {
     return false;
   }
 
-  const allowedOrigins = resolveAllowedOrigins();
+  if (!cachedAllowedOrigins) {
+    cachedAllowedOrigins = resolveAllowedOrigins();
+  }
+  const allowedOrigins = cachedAllowedOrigins;
   return allowedOrigins.includes(origin);
+};
+
+export const resetAllowedOriginsCache = () => {
+  cachedAllowedOrigins = null;
 };
 
 export { DEFAULT_ALLOWED_ORIGINS };
