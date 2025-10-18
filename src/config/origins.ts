@@ -57,7 +57,7 @@ export const resolveAllowedOrigins = (baseURL?: string): AllowedOrigin[] => {
 
 export const isAllowedOrigin = (origin: string | undefined): boolean => {
   if (!origin) {
-    return true;
+    return false;
   }
 
   const allowedOrigins = resolveAllowedOrigins();

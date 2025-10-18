@@ -5,6 +5,7 @@ import { oidcProvider } from "better-auth/plugins/oidc-provider";
 import Database from "better-sqlite3";
 import { DatabaseSync } from "node:sqlite";
 import path from "node:path";
+import { getDomain } from "tldts";
 import { resolveAllowedOrigins } from "./config/origins";
 
 const databasePath = path.resolve(process.cwd(), "better-auth.sqlite");
@@ -55,7 +56,14 @@ if (!socialProviders) {
 
 const allowedOrigins = resolveAllowedOrigins(baseURL);
 
-let cookieDomain: string | undefined;
+const explicitCookieDomainValue = process.env.BETTER_AUTH_COOKIE_DOMAIN?.trim();
+const explicitCookieDomain = explicitCookieDomainValue
+  ? explicitCookieDomainValue.startsWith(".")
+    ? explicitCookieDomainValue
+    : `.${explicitCookieDomainValue}`
+  : undefined;
+
+let cookieDomain: string | undefined = explicitCookieDomain;
 let cookieSecure = false;
 let cookieSameSite: "none" | "lax" = "lax";
 
@@ -63,8 +71,21 @@ try {
   const url = new URL(baseURL);
   cookieSecure = url.protocol === "https:";
   cookieSameSite = cookieSecure ? "none" : "lax";
+
   if (cookieSecure) {
-    cookieDomain = `.${url.hostname}`;
+    if (!cookieDomain) {
+      const registrableDomain = getDomain(url.hostname, { allowPrivateDomains: true });
+      if (registrableDomain) {
+        cookieDomain = `.${registrableDomain}`;
+      } else {
+        cookieDomain = `.${url.hostname}`;
+      }
+    }
+  } else if (cookieDomain) {
+    console.warn(
+      "BETTER_AUTH_COOKIE_DOMAIN is set but BETTER_AUTH_URL is not HTTPS; cross-subdomain cookies remain disabled.",
+    );
+    cookieDomain = undefined;
   }
 } catch (error) {
   console.warn(`Invalid BETTER_AUTH_URL provided (${baseURL}). Falling back to HTTP defaults.`, error);

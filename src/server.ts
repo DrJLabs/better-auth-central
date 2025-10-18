@@ -74,12 +74,27 @@ export const createApp = (options: CreateAppOptions = {}): Application => {
   });
 
   app.use((req: Request, res: Response, next: NextFunction) => {
-    const origin = req.headers.origin;
-    if (!origin || allowedOriginSet.has(origin)) {
+    const originHeader = req.headers.origin;
+    const origin = Array.isArray(originHeader) ? originHeader[0] : originHeader;
+    const allowMissingOrigin = req.path === "/healthz" || req.path.startsWith("/.well-known/");
+
+    if (!origin) {
+      if (allowMissingOrigin) {
+        next();
+        return;
+      }
+
+      console.warn("Rejecting request due to missing Origin header");
+      res.status(403).json({ error: "origin_not_allowed" });
+      return;
+    }
+
+    if (allowedOriginSet.has(origin)) {
       next();
       return;
     }
 
+    console.warn(`Rejecting request from disallowed origin: ${origin}`);
     res.status(403).json({ error: "origin_not_allowed" });
   });
 

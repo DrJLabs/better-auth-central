@@ -84,12 +84,22 @@ describe("server", () => {
 
       assert.deepEqual(response.body, { error: "origin_not_allowed" });
     });
+
+    it("rejects API requests without an Origin header", async () => {
+      const response = await request(app)
+        .get("/api/auth/session")
+        .expect(403)
+        .expect("Content-Type", /json/);
+
+      assert.deepEqual(response.body, { error: "origin_not_allowed" });
+    });
   });
 
   describe("/.well-known/oauth-authorization-server", () => {
     it("returns discovery metadata", async () => {
       const response = await request(app)
         .get("/.well-known/oauth-authorization-server")
+        .set("Origin", "https://auth.onemainarmy.com")
         .expect(200)
         .expect("Content-Type", /json/);
 
@@ -108,6 +118,7 @@ describe("server", () => {
     it("returns protected resource metadata", async () => {
       const response = await request(app)
         .get("/.well-known/oauth-protected-resource")
+        .set("Origin", "https://auth.onemainarmy.com")
         .expect(200)
         .expect("Content-Type", /json/);
 
@@ -125,6 +136,7 @@ describe("server", () => {
     it("renders the enhanced login page", async () => {
       const response = await request(app)
         .get("/login")
+        .set("Origin", "https://auth.onemainarmy.com")
         .expect(200)
         .expect("Content-Type", /html/);
 
@@ -143,6 +155,7 @@ describe("server", () => {
           client_id: "todo-client",
           scope: "read write",
         })
+        .set("Origin", "https://auth.onemainarmy.com")
         .expect(200)
         .expect("Content-Type", /html/);
 

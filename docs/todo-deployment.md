@@ -17,7 +17,7 @@
 - Check logs with `journalctl -u traefik --reverse`
 
 ## Next Steps
-1. Start the MCP server: `cd ~/projects/chatgpt-todo-app/server && npm install && PORT=25010 npm run start`
+1. Start the MCP server: `cd ~/projects/chatgpt-todo-app/server && pnpm install && PORT=25010 pnpm start`
 2. Verify Traefik route: `curl -I https://todo.onemainarmy.com/mcp-metadata`
 3. Fix Better Auth discovery 502s so metadata relay succeeds
 4. Ensure Better Auth trusted origins include `https://todo.onemainarmy.com`

@@ -10,10 +10,10 @@
 
 ## Source Tree Structure
 
-- `package.json` / `pnpm-lock.yaml` — add runtime dependency `cors@2.8.5`.
+- `package.json` / `pnpm-lock.yaml` — add runtime dependencies `cors@2.8.5` and `tldts@7.0.17`.
 - `src/config/origins.ts` (new) — export `DEFAULT_ALLOWED_ORIGINS` list and `resolveAllowedOrigins()` helper that merges defaults with `BETTER_AUTH_TRUSTED_ORIGINS`.
 - `src/ui/loginPage.ts` (new) — implement `renderLoginPage({{ googleSignInUrl, baseUrl }})` returning branded HTML.
-- `src/ui/consentPage.ts` (new) — implement `renderConsentPage({{ consentCode, clientId, scopeList, googleProviderConfigured }})` outputting consent UI.
+- `src/ui/consentPage.ts` (new) — implement `renderConsentPage({ consentCode, clientId, scopeList, submitUrl })` outputting consent UI.
 - `src/server.ts` — wire CORS middleware, reject unknown origins, serve the new templates, keep `app.set('trust proxy', 1)`.
 - `src/auth.ts` — configure Better Auth `trustedOrigins`, secure cookie attributes, and cross-sub-domain cookies based on `BETTER_AUTH_URL`.
 - `src/__tests__/server.test.mjs` — add integration tests for CORS headers, rejection paths, cookie attributes, and login/consent markup snapshots.
@@ -24,7 +24,7 @@
 
 ## Technical Approach
 
-Use a single allowlist for origins consumed by both Express CORS middleware and Better Auth `trustedOrigins`. Enforce secure, cross-domain cookies by enabling Better Auth advanced settings and deriving cookie domain from `BETTER_AUTH_URL`. Replace placeholder login/consent pages with reusable templates that surface Google SSO and consent info. Extend the discovery smoke script so CI/operators can validate the production endpoint. All changes stay within the existing Express + Better Auth stack; no new services are introduced.
+Use a single allowlist for origins consumed by both Express CORS middleware and Better Auth `trustedOrigins`. Enforce secure, cross-domain cookies by enabling Better Auth advanced settings, deriving the registrable domain from `BETTER_AUTH_URL`, and allowing operators to override it via `BETTER_AUTH_COOKIE_DOMAIN`. Replace placeholder login/consent pages with reusable templates that surface Google SSO and consent info. Extend the discovery smoke script so CI/operators can validate the production endpoint. All changes stay within the existing Express + Better Auth stack; no new services are introduced.
 
 ---
 
@@ -33,6 +33,7 @@ Use a single allowlist for origins consumed by both Express CORS middleware and 
 - Node.js 20.x runtime (existing project standard)
 - Express 5.1.0
 - `cors` 2.8.5
+- `tldts` 7.0.17
 - Better Auth 1.3.27 (`jwt`, `oidcProvider`, `mcp` plugins)
 - TypeScript 5.9.3
 - Supertest 7.1.4 + Node test runner
@@ -43,19 +44,19 @@ Use a single allowlist for origins consumed by both Express CORS middleware and 
 
 - `DEFAULT_ALLOWED_ORIGINS` = [`http://localhost:5173`, `http://localhost:3000`, `https://todo.onemainarmy.com`, `https://auth.onemainarmy.com`]. `resolveAllowedOrigins()` reads `BETTER_AUTH_TRUSTED_ORIGINS` (comma-separated), trims, deduplicates, and throws on empty values.
 - Register `cors` middleware with `{ origin: allowlistFn, credentials: true, methods: ["GET","POST","PUT","PATCH","DELETE","OPTIONS"], allowedHeaders: ["Content-Type","Authorization","X-Requested-With"], exposedHeaders: ["Set-Cookie"], preflightContinue: false }`; handle `app.options('*', corsMiddleware)` returning 204 with headers.
-- Add guard middleware before auth routes that responds 403 JSON `{ "error": "origin_not_allowed" }` when `Origin` header is absent from allowlist; log warning with origin.
-- In `auth.ts`, derive hostname from `new URL(baseURL).hostname`. Configure Better Auth: `trustedOrigins = resolveAllowedOrigins()`, `advanced.useSecureCookies = baseURL.startswith('https')`, `advanced.cookieAttributes = {{ sameSite: 'none', secure: baseURL.startswith('https'), httpOnly: true, domain: baseURL.startswith('https') and f'.{hostname}' or None, path: '/' }}`, `advanced.crossSubDomainCookies = {{ enabled: True, domain: baseURL.startswith('https') and f'.{hostname}' or None }}`.
+- Add guard middleware before auth routes that responds 403 JSON `{ "error": "origin_not_allowed" }` when the `Origin` header is missing or not on the allowlist, while still permitting public `.well-known/*` discovery endpoints and `/healthz` to serve unauthenticated callers; log a warning that includes the rejected origin value.
+- In `auth.ts`, derive hostname from `new URL(baseURL).hostname`. Configure Better Auth: `trustedOrigins = resolveAllowedOrigins()`, `advanced.useSecureCookies = baseURL.startswith('https')`, `advanced.cookieAttributes = {{ sameSite: 'none', secure: baseURL.startswith('https'), httpOnly: true, domain: BETTER_AUTH_COOKIE_DOMAIN or derived registrable domain, path: '/' }}`, `advanced.crossSubDomainCookies = {{ enabled: True, domain: BETTER_AUTH_COOKIE_DOMAIN or derived registrable domain }}`; fall back to the request host when no registrable domain can be inferred.
 - `renderLoginPage` must show brand header, explanation, and button linking to `/api/auth/sign-in/social?provider=google`; degrade with informational banner if Google credentials missing.
 - `renderConsentPage` must list client ID, requested scopes (bullet list), submit form via POST to `/api/auth/oauth2/consent`, and allow deny/accept actions.
 - Extend discovery script CLI parsing: `node scripts/check-discovery.mjs --base-url=https://auth.onemainarmy.com`; default still local. Print base URL at start.
-- Update docs to cover new env vars (`BETTER_AUTH_URL`, `MCP_RESOURCE`, `BETTER_AUTH_TRUSTED_ORIGINS`) and note Traefik must forward `X-Forwarded-*`.
+- Update docs to cover new env vars (`BETTER_AUTH_URL`, `MCP_RESOURCE`, `BETTER_AUTH_TRUSTED_ORIGINS`, `BETTER_AUTH_COOKIE_DOMAIN`) and note Traefik must forward `X-Forwarded-*`.
 
 ---
 
 ## Development Setup
 
 1. `pnpm add cors` and reinstall dependencies.
-2. Copy `.env.example` → `.env`; provide `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `MCP_RESOURCE`, `BETTER_AUTH_TRUSTED_ORIGINS`.
+2. Copy `.env.example` → `.env`; provide `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `MCP_RESOURCE`, `BETTER_AUTH_TRUSTED_ORIGINS`, and (for production HTTPS) `BETTER_AUTH_COOKIE_DOMAIN`.
 3. For local dev: `BETTER_AUTH_URL=http://127.0.0.1:3000`; trusted origins left empty (defaults cover localhost).
 4. Run `pnpm dev`; ensure ChatGPT Todo MCP client points at matching base URL.
 
@@ -67,7 +68,7 @@ Use a single allowlist for origins consumed by both Express CORS middleware and 
 2. Install/configure `cors` middleware in `src/server.ts`, including OPTIONS handler; keep `trust proxy` call.
 3. Add origin guard middleware before auth routes returning 403 for disallowed origins.
 4. Implement `renderLoginPage` and `renderConsentPage` templates under `src/ui` and update `/login` and `/consent` handlers to use them.
-5. Update `src/auth.ts` to import `resolveAllowedOrigins()` and set Better Auth trusted origins plus secure cookie options derived from base URL.
+5. Update `src/auth.ts` to import `resolveAllowedOrigins()` and set Better Auth trusted origins plus secure cookie options derived from `BETTER_AUTH_URL`, honouring `BETTER_AUTH_COOKIE_DOMAIN` when provided and falling back to the registrable domain.
 6. Enhance `scripts/check-discovery.mjs` with `--base-url` flag and logging.
 7. Update `.env.example` and README with new environment requirements and deployment guidance.
 8. Add integration tests verifying CORS headers, rejection behaviour, cookie attributes, and login/consent markup.
