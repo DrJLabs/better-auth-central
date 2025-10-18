@@ -3,12 +3,28 @@ import assert from "node:assert/strict";
 import { pathToFileURL } from "node:url";
 
 const DEFAULT_BASE_URL = "http://127.0.0.1:3000";
+const DEFAULT_TIMEOUT_MS = Number.parseInt(process.env.DISCOVERY_TIMEOUT_MS ?? "10000", 10);
+const DISCOVERY_TIMEOUT_MS = Number.isNaN(DEFAULT_TIMEOUT_MS) ? 10000 : DEFAULT_TIMEOUT_MS;
 
-export const resolveBaseURL = () => process.env.BETTER_AUTH_URL ?? DEFAULT_BASE_URL;
+export const resolveBaseURL = (override) => {
+  if (override) {
+    return override;
+  }
+
+  return process.env.BETTER_AUTH_URL ?? DEFAULT_BASE_URL;
+};
 
 export const fetchJson = async (path, baseURL = resolveBaseURL()) => {
   const url = new URL(path, baseURL).toString();
-  const response = await fetch(url);
+  let response;
+  try {
+    response = await fetch(url, { signal: AbortSignal.timeout(DISCOVERY_TIMEOUT_MS) });
+  } catch (error) {
+    if (error instanceof Error && (error.name === "AbortError" || error.name === "TimeoutError")) {
+      throw new Error(`Timed out fetching ${url} after ${DISCOVERY_TIMEOUT_MS}ms`);
+    }
+    throw error;
+  }
   assert.ok(response.ok, `Failed to fetch ${url}: ${response.status} ${response.statusText}`);
   try {
     return await response.json();
@@ -24,16 +40,18 @@ export const ensureKeys = (object, keys, context) => {
   }
 };
 
-export const runDiscoverySmoke = async () => {
-  const baseURL = resolveBaseURL();
-  const discovery = await fetchJson("/.well-known/oauth-authorization-server", baseURL);
+export const runDiscoverySmoke = async (baseURL) => {
+  const target = resolveBaseURL(baseURL);
+  console.log(`Running discovery smoke check against ${target}`);
+
+  const discovery = await fetchJson("/.well-known/oauth-authorization-server", target);
   ensureKeys(
     discovery,
     ["issuer", "jwks_uri", "registration_endpoint", "authorization_endpoint", "token_endpoint"],
     "OIDC discovery",
   );
 
-  const protectedResource = await fetchJson("/.well-known/oauth-protected-resource", baseURL);
+  const protectedResource = await fetchJson("/.well-known/oauth-protected-resource", target);
   ensureKeys(
     protectedResource,
     ["resource", "authorization_servers", "jwks_uri", "scopes_supported"],
@@ -41,6 +59,27 @@ export const runDiscoverySmoke = async () => {
   );
 
   console.log("Discovery smoke check passed");
+};
+
+const parseCliBaseUrl = (argv) => {
+  for (let index = 0; index < argv.length; index += 1) {
+    const arg = argv[index];
+    if (arg.startsWith("--base-url=")) {
+      const value = arg.slice("--base-url=".length);
+      if (value.length === 0) {
+        throw new Error("Missing value for --base-url. Example: --base-url=https://auth.example.com");
+      }
+      return value;
+    }
+    if (arg === "--base-url") {
+      const value = argv[index + 1];
+      if (!value || value.startsWith("--")) {
+        throw new Error("Missing value for --base-url. Example: --base-url=https://auth.example.com");
+      }
+      return value;
+    }
+  }
+  return undefined;
 };
 
 const isCliInvocation = () => {
@@ -53,8 +92,14 @@ const isCliInvocation = () => {
 };
 
 if (isCliInvocation()) {
-  runDiscoverySmoke().catch((error) => {
+  try {
+    const cliBaseUrl = parseCliBaseUrl(process.argv.slice(2));
+    runDiscoverySmoke(cliBaseUrl).catch((error) => {
+      console.error(error);
+      process.exitCode = 1;
+    });
+  } catch (error) {
     console.error(error);
     process.exitCode = 1;
-  });
+  }
 }

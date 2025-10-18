@@ -10,8 +10,11 @@
     "auth:generate": "pnpm exec cli generate",
     "auth:migrate": "pnpm exec cli migrate",
     "smoke:discovery": "node scripts/check-discovery.mjs",
+    "pretest": "pnpm run build",
     "test": "node --test",
+    "pretest:watch": "pnpm run build",
     "test:watch": "node --test --watch",
+    "pretest:coverage": "pnpm run build",
     "test:coverage": "node --test --experimental-test-coverage"
   },
   "keywords": [
@@ -26,12 +29,15 @@
   "dependencies": {
     "better-auth": "^1.3.27",
     "better-sqlite3": "^12.4.1",
+    "cors": "^2.8.5",
     "dotenv": "^17.2.3",
-    "express": "^5.1.0"
+    "express": "^5.1.0",
+    "tldts": "^7.0.17"
   },
   "devDependencies": {
     "@better-auth/cli": "^1.3.27",
     "@types/better-sqlite3": "^7.6.13",
+    "@types/cors": "^2.8.19",
     "@types/express": "^5.0.3",
     "@types/node": "^24.7.1",
     "@types/supertest": "^6.0.3",
