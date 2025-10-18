@@ -12,6 +12,9 @@ import { resolveAllowedOrigins } from "./config/origins";
 import { renderConsentPage } from "./ui/consentPage";
 import { renderLoginPage } from "./ui/loginPage";
 import { auth, closeAuth } from "./auth";
+import { Readable } from "node:stream";
+import { pipeline } from "node:stream/promises";
+import type { ReadableStream as NodeReadableStream } from "node:stream/web";
 
 type AuthLike = typeof auth;
 
@@ -44,23 +47,42 @@ const buildParams = (query: ExpressRequest["query"]): URLSearchParams => {
   return params;
 };
 
-const sendFetchResponse = async (fetchResponse: Response, res: ExpressResponse) => {
+const sendFetchResponse = async (
+  fetchResponse: globalThis.Response,
+  res: ExpressResponse,
+): Promise<void> => {
   res.status(fetchResponse.status);
 
   fetchResponse.headers.forEach((value, key) => {
-    res.setHeader(key, value);
+    res.append(key, value);
   });
 
-  const payload = await fetchResponse.text();
-  if (payload.length > 0) {
-    res.send(payload);
+  const body = fetchResponse.body;
+  if (!body) {
+    const payload = await fetchResponse.text();
+    if (payload.length > 0) {
+      res.send(payload);
+      return;
+    }
+
+    res.end();
     return;
   }
 
-  res.end();
+  const nodeStream = Readable.fromWeb(body as unknown as NodeReadableStream);
+
+  try {
+    await pipeline(nodeStream, res);
+  } catch (error) {
+    const err = error as NodeJS.ErrnoException;
+    if (err?.code === "ERR_STREAM_PREMATURE_CLOSE") {
+      return;
+    }
+    throw error;
+  }
 };
 
-const createFetchRequest = (req: ExpressRequest, baseUrl: string): Request => {
+const createFetchRequest = (req: ExpressRequest, baseUrl: string): globalThis.Request => {
   const url = new URL(req.originalUrl, baseUrl);
   const headers = new Headers();
 
@@ -79,15 +101,23 @@ const createFetchRequest = (req: ExpressRequest, baseUrl: string): Request => {
     headers.set(key, value);
   }
 
-  return new Request(url, {
+  const hasBody = req.method !== "GET" && req.method !== "HEAD";
+  const requestInit: RequestInit & { duplex?: "half" } = {
     method: req.method,
     headers,
-  });
+  };
+
+  if (hasBody) {
+    requestInit.body = req as unknown as BodyInit;
+    requestInit.duplex = "half";
+  }
+
+  return new Request(url, requestInit);
 };
 
 const adaptFetchHandler =
   (
-    handler: (request: Request) => Promise<Response>,
+    handler: (request: globalThis.Request) => Promise<globalThis.Response>,
     baseUrl: string,
   ): ((req: ExpressRequest, res: ExpressResponse, next: NextFunction) => void) =>
   async (req, res, next) => {
