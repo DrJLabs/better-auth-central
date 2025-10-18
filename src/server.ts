@@ -17,6 +17,14 @@ import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import type { ReadableStream as NodeReadableStream } from "node:stream/web";
 
+const FORWARDED_HEADER_BLOCKLIST = new Set([
+  "access-control-allow-origin",
+  "access-control-allow-credentials",
+  "access-control-allow-methods",
+  "access-control-allow-headers",
+  "access-control-max-age",
+]);
+
 type AuthLike = typeof auth;
 
 export interface CreateAppOptions {
@@ -32,6 +40,9 @@ const sendFetchResponse = async (
   res.status(fetchResponse.status);
 
   fetchResponse.headers.forEach((value, key) => {
+    if (FORWARDED_HEADER_BLOCKLIST.has(key.toLowerCase())) {
+      return;
+    }
     res.append(key, value);
   });
 
@@ -47,8 +58,8 @@ const sendFetchResponse = async (
     return;
   }
 
-  // Node's stream helpers expect the node:stream/web ReadableStream variant; cast is
-  // necessary because fetchResponse.body is typed via DOM lib definitions.
+  // The Fetch API returns the DOM `ReadableStream`, while Node's helper expects the
+  // `node:stream/web` flavour. The cast links the two since they are compatible at runtime.
   const nodeStream = Readable.fromWeb(body as unknown as NodeReadableStream);
 
   try {
@@ -88,8 +99,8 @@ const createFetchRequest = (req: ExpressRequest, baseUrl: string): globalThis.Re
   };
 
   if (hasBody) {
-    // Express' request implements the Node readable stream interface; casting keeps the duplex
-    // hint intact so undici can consume the stream when bridging to Fetch.
+    // Node's `Request` constructor accepts Readable streams, but `BodyInit` does not capture
+    // that, so we cast the Express request stream before handing it off.
     requestInit.body = req as unknown as BodyInit;
     requestInit.duplex = "half";
   }
@@ -101,8 +112,8 @@ const adaptFetchHandler =
   (
     handler: (request: globalThis.Request) => Promise<globalThis.Response>,
     baseUrl: string,
-  ): ((req: ExpressRequest, res: ExpressResponse, next: NextFunction) => void) =>
-  async (req, res, next) => {
+  ): RequestHandler =>
+  async (req: ExpressRequest, res: ExpressResponse, next: NextFunction) => {
     try {
       const fetchResponse = await handler(createFetchRequest(req, baseUrl));
       await sendFetchResponse(fetchResponse, res);
