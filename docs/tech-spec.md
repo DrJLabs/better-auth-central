@@ -44,7 +44,7 @@ Use a single allowlist for origins consumed by both Express CORS middleware and 
 
 - `DEFAULT_ALLOWED_ORIGINS` = [`http://localhost:5173`, `http://localhost:3000`, `https://todo.onemainarmy.com`, `https://auth.onemainarmy.com`]. `resolveAllowedOrigins()` reads `BETTER_AUTH_TRUSTED_ORIGINS` (comma-separated), trims, deduplicates, and throws on empty values.
 - Register `cors` middleware with `{ origin: allowlistFn, credentials: true, methods: ["GET","POST","PUT","PATCH","DELETE","OPTIONS"], allowedHeaders: ["Content-Type","Authorization","X-Requested-With"], exposedHeaders: ["Set-Cookie"], preflight:`false` } so preflight requests are answered automatically.
-- Add a global guard that rejects any request carrying a disallowed `Origin`, plus an `/api/auth`-scoped guard that requires an allowlisted `Origin` header (returning 403 JSON `{ "error": "origin_not_allowed" }` when missing or invalid). Public `.well-known/*` discovery endpoints, `/healthz`, and HTML entry points accept browser navigations without an `Origin` header, while rejections continue to log the offending value.
+- Add a global guard that rejects any request carrying a disallowed `Origin`. Public `.well-known/*` discovery endpoints, `/healthz`, HTML entry points, and OAuth flows continue to work without an `Origin` header while we still log and block any explicit cross-origin attempts.
 - In `auth.ts`, derive hostname from `new URL(baseURL).hostname`. Configure Better Auth: `trustedOrigins = resolveAllowedOrigins()`, `advanced.useSecureCookies = baseURL.startswith('https')`, `advanced.cookieAttributes = {{ sameSite: 'none', secure: baseURL.startswith('https'), httpOnly: true, domain: BETTER_AUTH_COOKIE_DOMAIN or derived registrable domain, path: '/' }}`, `advanced.crossSubDomainCookies = {{ enabled: True, domain: BETTER_AUTH_COOKIE_DOMAIN or derived registrable domain }}`; omit the domain attribute when no registrable domain can be inferred so development cookies remain host-scoped.
 - `renderLoginPage` must show brand header, explanation, and button linking to `/api/auth/sign-in/social?provider=google`; degrade with informational banner if Google credentials missing.
 - `renderConsentPage` must list client ID, requested scopes (bullet list), submit form via POST to `/api/auth/oauth2/consent`, and allow deny/accept actions.
@@ -66,7 +66,7 @@ Use a single allowlist for origins consumed by both Express CORS middleware and 
 
 1. Create `src/config/origins.ts` with default allowlist, env override parser, and validation.
 2. Install/configure `cors` middleware in `src/server.ts`, relying on its built-in preflight handling; keep `trust proxy` call.
-3. Add origin guards so any request with a disallowed origin is rejected and `/api/auth` requests require an allowlisted `Origin` header.
+3. Add origin guards so any request with a disallowed origin is rejected while allowing OAuth navigations and server-to-server requests that legitimately omit the `Origin` header.
 4. Implement `renderLoginPage` and `renderConsentPage` templates under `src/ui` and update `/login` and `/consent` handlers to use them.
 5. Update `src/auth.ts` to import `resolveAllowedOrigins()` and set Better Auth trusted origins plus secure cookie options derived from `BETTER_AUTH_URL`, honouring `BETTER_AUTH_COOKIE_DOMAIN` when provided and falling back to the registrable domain.
 6. Enhance `scripts/check-discovery.mjs` with `--base-url` flag and logging.

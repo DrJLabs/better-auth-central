@@ -44,7 +44,12 @@ export const resolveAllowedOrigins = (baseURL?: string): AllowedOrigin[] => {
 
   const envOrigins = parseList(process.env.BETTER_AUTH_TRUSTED_ORIGINS);
   for (const origin of envOrigins) {
-    const parsed = toOrigin(origin) ?? origin;
+    const parsed = toOrigin(origin);
+    if (!parsed) {
+      throw new Error(
+        `Invalid origin "${origin}" found in BETTER_AUTH_TRUSTED_ORIGINS. Provide absolute URLs.`,
+      );
+    }
     origins.add(parsed);
   }
 

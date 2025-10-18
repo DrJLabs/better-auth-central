@@ -89,31 +89,12 @@ export const createApp = (options: CreateAppOptions = {}): Application => {
 
   const authHandler = toNodeHandler(authInstance);
 
-  const requireApiOrigin = (req: Request, res: Response, next: NextFunction) => {
-    const originHeader = req.headers.origin;
-    const origin = Array.isArray(originHeader) ? originHeader[0] : originHeader;
-
-    if (!origin) {
-      console.warn("Rejecting /api/auth request due to missing Origin header");
-      res.status(403).json({ error: "origin_not_allowed" });
-      return;
-    }
-
-    if (!allowedOriginSet.has(origin)) {
-      console.warn(`Rejecting /api/auth request from disallowed origin: ${origin}`);
-      res.status(403).json({ error: "origin_not_allowed" });
-      return;
-    }
-
-    next();
-  };
-
   const handleAuth = (req: Request, res: Response, next: NextFunction) => {
     req.url = req.originalUrl;
     authHandler(req, res).catch(next);
   };
 
-  app.use("/api/auth", requireApiOrigin, handleAuth);
+  app.use("/api/auth", handleAuth);
 
   app.get("/.well-known/oauth-authorization-server", async (_req, res, next) => {
     try {

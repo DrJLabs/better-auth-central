@@ -85,9 +85,14 @@ describe("server", () => {
       assert.deepEqual(response.body, { error: "origin_not_allowed" });
     });
 
-    it("rejects API requests without an Origin header", async () => {
+    it("allows API requests without an Origin header", async () => {
+      await request(app).get("/api/auth/session").expect(404);
+    });
+
+    it("rejects API requests from disallowed origins", async () => {
       const response = await request(app)
         .get("/api/auth/session")
+        .set("Origin", "https://example.invalid")
         .expect(403)
         .expect("Content-Type", /json/);
 

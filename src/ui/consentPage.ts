@@ -122,33 +122,16 @@ export const renderConsentPage = ({
           ${renderedScopes}
         </ul>
       </section>
-      <form id="consent-form" method="post" action="${safeSubmit}">
+      <form method="post" action="${safeSubmit}">
         <input type="hidden" name="consent_code" value="${safeConsent}" />
-        <input type="hidden" name="accept" value="true" />
         <div class="actions">
-          <button type="submit">Allow access</button>
-          <button type="button" data-deny="true">Deny</button>
+          <button type="submit" name="accept" value="true">Allow access</button>
+          <button type="submit" name="accept" value="false" data-deny="true">Deny</button>
         </div>
       </form>
       <footer>
         Need help? Contact your workspace administrator or revoke access from your Better Auth dashboard.
       </footer>
-      <script>
-        (function () {
-          const form = document.getElementById('consent-form');
-          if (!form) return;
-          const denyButton = form.querySelector('button[data-deny="true"]');
-          if (denyButton) {
-            denyButton.addEventListener('click', () => {
-              const acceptInput = form.querySelector('input[name="accept"]');
-              if (acceptInput) {
-                acceptInput.value = 'false';
-              }
-              form.submit();
-            });
-          }
-        })();
-      </script>
   </body>
 </html>`;
 };

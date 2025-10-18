@@ -56,14 +56,17 @@ const parseCliBaseUrl = (argv) => {
     const arg = argv[index];
     if (arg.startsWith("--base-url=")) {
       const value = arg.slice("--base-url=".length);
-      return value.length > 0 ? value : undefined;
+      if (value.length === 0) {
+        throw new Error("Missing value for --base-url. Example: --base-url=https://auth.example.com");
+      }
+      return value;
     }
     if (arg === "--base-url") {
       const value = argv[index + 1];
-      if (value && !value.startsWith("--")) {
-        return value;
+      if (!value || value.startsWith("--")) {
+        throw new Error("Missing value for --base-url. Example: --base-url=https://auth.example.com");
       }
-      return undefined;
+      return value;
     }
   }
   return undefined;
@@ -79,9 +82,14 @@ const isCliInvocation = () => {
 };
 
 if (isCliInvocation()) {
-  const cliBaseUrl = parseCliBaseUrl(process.argv.slice(2));
-  runDiscoverySmoke(cliBaseUrl).catch((error) => {
+  try {
+    const cliBaseUrl = parseCliBaseUrl(process.argv.slice(2));
+    runDiscoverySmoke(cliBaseUrl).catch((error) => {
+      console.error(error);
+      process.exitCode = 1;
+    });
+  } catch (error) {
     console.error(error);
     process.exitCode = 1;
-  });
+  }
 }
