@@ -1,11 +1,29 @@
-import express, { type Application, type NextFunction, type Request, type Response } from "express";
+import express, {
+  type Application,
+  type NextFunction,
+  type Request as ExpressRequest,
+  type RequestHandler,
+  type Response as ExpressResponse,
+} from "express";
 import cors, { type CorsOptions } from "cors";
 import { toNodeHandler } from "better-auth/node";
+import { oAuthDiscoveryMetadata, oAuthProtectedResourceMetadata } from "better-auth/plugins";
 import type { Server } from "node:http";
 import { resolveAllowedOrigins } from "./config/origins";
 import { renderConsentPage } from "./ui/consentPage";
 import { renderLoginPage } from "./ui/loginPage";
 import { auth, closeAuth } from "./auth";
+import { Readable } from "node:stream";
+import { pipeline } from "node:stream/promises";
+import type { ReadableStream as NodeReadableStream } from "node:stream/web";
+
+const FORWARDED_HEADER_BLOCKLIST = new Set([
+  "access-control-allow-origin",
+  "access-control-allow-credentials",
+  "access-control-allow-methods",
+  "access-control-allow-headers",
+  "access-control-max-age",
+]);
 
 type AuthLike = typeof auth;
 
@@ -15,28 +33,94 @@ export interface CreateAppOptions {
   consentPath?: string;
 }
 
-const buildParams = (query: Request["query"]): URLSearchParams => {
-  const params = new URLSearchParams();
+const sendFetchResponse = async (
+  fetchResponse: globalThis.Response,
+  res: ExpressResponse,
+): Promise<void> => {
+  res.status(fetchResponse.status);
 
-  for (const [key, rawValue] of Object.entries(query)) {
-    if (rawValue == null) {
+  fetchResponse.headers.forEach((value, key) => {
+    if (FORWARDED_HEADER_BLOCKLIST.has(key.toLowerCase())) {
+      return;
+    }
+    res.append(key, value);
+  });
+
+  const body = fetchResponse.body;
+  if (!body) {
+    const payload = await fetchResponse.text();
+    if (payload.length > 0) {
+      res.send(payload);
+      return;
+    }
+
+    res.end();
+    return;
+  }
+
+  // The Fetch API returns the DOM `ReadableStream`, while Node's helper expects the
+  // `node:stream/web` flavour. The cast links the two since they are compatible at runtime.
+  const nodeStream = Readable.fromWeb(body as unknown as NodeReadableStream);
+
+  try {
+    await pipeline(nodeStream, res);
+  } catch (error) {
+    const err = error as NodeJS.ErrnoException;
+    if (err?.code === "ERR_STREAM_PREMATURE_CLOSE") {
+      return;
+    }
+    throw error;
+  }
+};
+
+const createFetchRequest = (req: ExpressRequest, baseUrl: string): globalThis.Request => {
+  const url = new URL(req.originalUrl, baseUrl);
+  const headers = new Headers();
+
+  for (const [key, value] of Object.entries(req.headers)) {
+    if (value == null) {
       continue;
     }
 
-    if (Array.isArray(rawValue)) {
-      for (const value of rawValue) {
-        if (value != null) {
-          params.append(key, String(value));
-        }
+    if (Array.isArray(value)) {
+      for (const item of value) {
+        headers.append(key, item);
       }
       continue;
     }
 
-    params.append(key, String(rawValue));
+    headers.set(key, value);
   }
 
-  return params;
+  const hasBody = req.method !== "GET" && req.method !== "HEAD";
+  const requestInit: RequestInit & { duplex?: "half" } = {
+    method: req.method,
+    headers,
+  };
+
+  if (hasBody) {
+    // Node's `Request` constructor accepts Readable streams, but `BodyInit` does not capture
+    // that, so we cast the Express request stream before handing it off.
+    requestInit.body = req as unknown as BodyInit;
+    requestInit.duplex = "half";
+  }
+
+  return new Request(url, requestInit);
 };
+
+const adaptFetchHandler =
+  (
+    handler: (request: globalThis.Request) => Promise<globalThis.Response>,
+    baseUrl: string,
+  ): RequestHandler =>
+  async (req: ExpressRequest, res: ExpressResponse, next: NextFunction) => {
+    try {
+      const fetchResponse = await handler(createFetchRequest(req, baseUrl));
+      await sendFetchResponse(fetchResponse, res);
+    } catch (error) {
+      next(error);
+    }
+  };
 
 export const createApp = (options: CreateAppOptions = {}): Application => {
   const app = express();
@@ -66,7 +150,7 @@ export const createApp = (options: CreateAppOptions = {}): Application => {
   const corsMiddleware = cors(corsOptions);
   app.use(corsMiddleware);
 
-  app.use((error: unknown, _req: Request, res: Response, next: NextFunction) => {
+  app.use((error: unknown, _req: ExpressRequest, res: ExpressResponse, next: NextFunction) => {
     if (error instanceof Error && error.message === "origin_not_allowed") {
       res.status(403).json({ error: "origin_not_allowed" });
       return;
@@ -76,7 +160,6 @@ export const createApp = (options: CreateAppOptions = {}): Application => {
   });
 
   const authInstance = options.authInstance ?? auth;
-  const authApi = authInstance.api;
   const loginPath = options.loginPath ?? process.env.OIDC_LOGIN_PATH ?? "/login";
   const consentPath = options.consentPath ?? process.env.OIDC_CONSENT_PATH ?? "/consent";
   const baseURL = process.env.BETTER_AUTH_URL ?? "http://localhost:3000";
@@ -86,33 +169,30 @@ export const createApp = (options: CreateAppOptions = {}): Application => {
 
   const authHandler = toNodeHandler(authInstance);
 
-  const handleAuth = (req: Request, res: Response, next: NextFunction) => {
+  const handleAuth: RequestHandler = (req, res, next) => {
     req.url = req.originalUrl;
     authHandler(req, res).catch(next);
   };
 
   app.use("/api/auth", handleAuth);
 
-  app.get("/.well-known/oauth-authorization-server", async (_req, res, next) => {
-    try {
-      const metadata = await authApi.getMcpOAuthConfig();
-      res.json(metadata);
-    } catch (error) {
-      next(error);
-    }
-  });
+  const discoveryHandler = adaptFetchHandler(oAuthDiscoveryMetadata(authInstance), baseURL);
+  const protectedResourceHandler = adaptFetchHandler(
+    oAuthProtectedResourceMetadata(authInstance),
+    baseURL,
+  );
 
-  app.get("/.well-known/oauth-protected-resource", async (_req, res, next) => {
-    try {
-      const metadata = await authApi.getMCPProtectedResource();
-      res.json(metadata);
-    } catch (error) {
-      next(error);
-    }
-  });
+  app.get("/.well-known/oauth-authorization-server", discoveryHandler);
+
+  app.get("/.well-known/oauth-protected-resource", protectedResourceHandler);
 
   app.get(loginPath, (_req, res) => {
     res
+      .set("X-Frame-Options", "DENY")
+      .set(
+        "Content-Security-Policy",
+        "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; frame-ancestors 'none'",
+      )
       .type("html")
       .send(
         renderLoginPage({
@@ -124,7 +204,7 @@ export const createApp = (options: CreateAppOptions = {}): Application => {
   });
 
   app.get(consentPath, (req, res) => {
-    const params = buildParams(req.query);
+    const params = new URL(req.originalUrl, baseURL).searchParams;
 
     const consentCode = params.get("consent_code") ?? "";
     const clientId = params.get("client_id") ?? "";
@@ -136,6 +216,11 @@ export const createApp = (options: CreateAppOptions = {}): Application => {
       .filter((item) => item.length > 0);
 
     res
+      .set("X-Frame-Options", "DENY")
+      .set(
+        "Content-Security-Policy",
+        "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; frame-ancestors 'none'",
+      )
       .type("html")
       .send(
         renderConsentPage({
