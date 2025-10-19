@@ -6,7 +6,7 @@ import express, {
   type Response as ExpressResponse,
 } from "express";
 import cors, { type CorsOptions } from "cors";
-import { toNodeHandler } from "better-auth/node";
+import { fromNodeHeaders, toNodeHandler } from "better-auth/node";
 import { oAuthDiscoveryMetadata, oAuthProtectedResourceMetadata } from "better-auth/plugins";
 import type { Server } from "node:http";
 import { resolveAllowedOrigins } from "./config/origins";
@@ -75,22 +75,7 @@ const sendFetchResponse = async (
 
 const createFetchRequest = (req: ExpressRequest, baseUrl: string): globalThis.Request => {
   const url = new URL(req.originalUrl, baseUrl);
-  const headers = new Headers();
-
-  for (const [key, value] of Object.entries(req.headers)) {
-    if (value == null) {
-      continue;
-    }
-
-    if (Array.isArray(value)) {
-      for (const item of value) {
-        headers.append(key, item);
-      }
-      continue;
-    }
-
-    headers.set(key, value);
-  }
+  const headers = fromNodeHeaders(req.headers);
 
   const hasBody = req.method !== "GET" && req.method !== "HEAD";
   const requestInit: RequestInit & { duplex?: "half" } = {
