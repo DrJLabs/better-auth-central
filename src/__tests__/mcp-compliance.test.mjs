@@ -17,6 +17,7 @@ const TEST_IDS = {
   scopeMismatch: "1.2-API-002",
   tokenSanitized: "1.2-API-007",
   introspection: "1.2-API-003",
+  introspectionInactive: "1.2-API-008",
   session: "1.2-API-004",
   handshake: "1.2-API-005",
   handshakeOrigin: "1.2-API-006",
@@ -184,6 +185,17 @@ describe(`[Story ${STORY_KEY}] MCP compliance responses`, () => {
       response.body.issued_token_type,
       "urn:ietf:params:oauth:token-type:access_token",
     );
+  });
+
+  it(`${PRIORITY.P0}[${TEST_IDS.introspectionInactive}] returns inactive response for unknown tokens`, async () => {
+    const response = await request(app)
+      .post("/api/auth/oauth2/introspect")
+      .set("Content-Type", "application/x-www-form-urlencoded")
+      .send(new URLSearchParams({ token: "invalid-token" }).toString())
+      .expect(200)
+      .expect("Content-Type", /json/);
+
+    assert.deepEqual(response.body, { active: false });
   });
 
   it(`${PRIORITY.P0}[${TEST_IDS.session}] returns MCP session payload with issued and expiry timestamps`, async () => {

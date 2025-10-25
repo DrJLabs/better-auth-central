@@ -126,6 +126,19 @@ export async function buildMcpTestHarness({
       if (url.pathname.endsWith('/oauth2/introspect')) {
         const body = await request.text();
         sessionStore.set('last-introspect-body', body);
+        const params = new URLSearchParams(body);
+        const token = params.get('token') ?? '';
+
+        if (!sessionStore.has(token)) {
+          return new Response(
+            JSON.stringify({ active: false }),
+            {
+              status: 200,
+              headers: { 'Content-Type': 'application/json' },
+            },
+          );
+        }
+
         return new Response(
           JSON.stringify({
             active: true,

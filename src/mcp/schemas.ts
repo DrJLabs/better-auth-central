@@ -11,13 +11,31 @@ export const OAuthTokenResponseSchema = z.object({
 
 export type OAuthTokenResponse = z.infer<typeof OAuthTokenResponseSchema>;
 
-export const OAuthIntrospectionResponseSchema = z.object({
+export const OAuthIntrospectionResponseBaseSchema = z.object({
   active: z.boolean(),
-  client_id: z.string().min(1, "client_id is required"),
-  resource: z.string().min(1, "resource is required"),
-  issued_token_type: z.string().min(1, "issued_token_type is required"),
-  scope: z.string().min(1, "scope is required"),
+  client_id: z.string().min(1, "client_id is required").optional(),
+  resource: z.string().min(1, "resource is required").optional(),
+  issued_token_type: z.string().min(1, "issued_token_type is required").optional(),
+  scope: z.string().min(1, "scope is required").optional(),
 });
+
+export const OAuthIntrospectionResponseSchema = OAuthIntrospectionResponseBaseSchema
+  .superRefine((value, ctx) => {
+    if (!value.active) {
+      return;
+    }
+
+    const ensure = (field: keyof typeof value, message: string) => {
+      if (!value[field]) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message, path: [field] });
+      }
+    };
+
+    ensure("client_id", "client_id is required");
+    ensure("resource", "resource is required");
+    ensure("issued_token_type", "issued_token_type is required");
+    ensure("scope", "scope is required");
+  });
 
 export type OAuthIntrospectionResponse = z.infer<typeof OAuthIntrospectionResponseSchema>;
 

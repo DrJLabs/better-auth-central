@@ -1,4 +1,4 @@
-import { OAuthIntrospectionResponseSchema, OAuthTokenResponseSchema, McpHandshakeResponseSchema, McpHandshakeMetadataSchema, McpSessionSchema } from "./schemas";
+import { OAuthIntrospectionResponseBaseSchema, OAuthIntrospectionResponseSchema, OAuthTokenResponseSchema, McpHandshakeResponseSchema, McpHandshakeMetadataSchema, McpSessionSchema } from "./schemas";
 import type { MCPClient } from "./registry";
 
 const TOKEN_TYPE = "Bearer";
@@ -65,11 +65,23 @@ export interface IntrospectionResponseContext {
 }
 
 export const buildIntrospectionResponse = (context: IntrospectionResponseContext) => {
-  const partialSchema = OAuthIntrospectionResponseSchema.partial();
+  const partialSchema = OAuthIntrospectionResponseBaseSchema.partial();
   const parsed = partialSchema.parse(context.payload ?? {});
 
   const session = context.session ?? undefined;
   const client = context.client;
+
+  const isActive = parsed.active ?? false;
+
+  if (!isActive) {
+    return OAuthIntrospectionResponseSchema.parse({
+      active: false,
+      client_id: parsed.client_id,
+      resource: parsed.resource,
+      issued_token_type: parsed.issued_token_type,
+      scope: parsed.scope,
+    });
+  }
 
   const resolvedClientId = parsed.client_id ?? session?.clientId ?? client?.id;
   const resolvedResource = parsed.resource ?? session?.resource ?? client?.resource;
@@ -83,6 +95,7 @@ export const buildIntrospectionResponse = (context: IntrospectionResponseContext
 
   return OAuthIntrospectionResponseSchema.parse({
     ...parsed,
+    active: true,
     client_id: resolvedClientId,
     resource: resolvedResource,
     scope: scopeString(resolvedScopeSource),
