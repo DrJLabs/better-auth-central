@@ -11,9 +11,9 @@ export interface MCPRegistry {
 }
 
 class InMemoryMcpRegistry implements MCPRegistry {
-  #clientsById = new Map<string, MCPClient>();
-  #clientsByOrigin = new Map<string, MCPClient>();
-  #scopeCatalog = new Set<string>();
+  #clientsById: Map<string, MCPClient> = new Map();
+  #clientsByOrigin: Map<string, MCPClient> = new Map();
+  #scopeCatalog: Set<string> = new Set();
 
   constructor(private currentConfig: MCPConfig) {
     this.refresh(currentConfig);
@@ -33,22 +33,27 @@ class InMemoryMcpRegistry implements MCPRegistry {
 
   refresh(config: MCPConfig): void {
     this.currentConfig = config;
-    this.#clientsById.clear();
-    this.#clientsByOrigin.clear();
-    this.#scopeCatalog = new Set(config.defaultScopes);
+
+    const nextClientsById = new Map<string, MCPClient>();
+    const nextClientsByOrigin = new Map<string, MCPClient>();
+    const nextScopeCatalog = new Set<string>(config.defaultScopes);
 
     for (const client of config.clients) {
-      if (this.#clientsByOrigin.has(client.origin)) {
+      if (nextClientsByOrigin.has(client.origin)) {
         throw new Error(
           `Duplicate MCP client origin detected: ${client.origin}. Each origin must map to a single client.`,
         );
       }
-      this.#clientsById.set(client.id, client);
-      this.#clientsByOrigin.set(client.origin, client);
+      nextClientsById.set(client.id, client);
+      nextClientsByOrigin.set(client.origin, client);
       for (const scope of client.scopes) {
-        this.#scopeCatalog.add(scope);
+        nextScopeCatalog.add(scope);
       }
     }
+
+    this.#clientsById = nextClientsById;
+    this.#clientsByOrigin = nextClientsByOrigin;
+    this.#scopeCatalog = nextScopeCatalog;
   }
 
   getScopeCatalog(): string[] {

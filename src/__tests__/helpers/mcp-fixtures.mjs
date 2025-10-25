@@ -182,6 +182,8 @@ export async function buildMcpTestHarness({
   };
 
   const { createApp } = await import('../../../dist/server.js');
+  const authModule = await import('../../../dist/auth.js');
+  authModule.refreshMcpRegistry();
   const app = createApp({ authInstance: authStub });
 
   const restoreEnv = () => {

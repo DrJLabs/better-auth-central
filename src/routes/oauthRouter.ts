@@ -14,7 +14,7 @@ interface AuthAdapter {
 export interface OAuthRouterOptions {
   auth: AuthAdapter;
   baseUrl: string;
-  refreshRegistry: () => MCPRegistry;
+  getRegistry: () => MCPRegistry;
   getConfig: () => { defaultScopes: string[]; enforceScopeAlignment: boolean };
 }
 
@@ -49,9 +49,23 @@ const normalizeSession = (
     scopes = parseScopeList(scopesValue);
   }
 
+  const clientIdValue =
+    typeof record.clientId === "string" && record.clientId.length > 0
+      ? record.clientId
+      : typeof record.client_id === "string" && record.client_id.length > 0
+        ? (record.client_id as string)
+        : undefined;
+
+  const resourceValue =
+    typeof record.resource === "string" && record.resource.length > 0
+      ? (record.resource as string)
+      : typeof record.resource_uri === "string" && record.resource_uri.length > 0
+        ? (record.resource_uri as string)
+        : undefined;
+
   return {
-    clientId: typeof record.clientId === "string" ? record.clientId : undefined,
-    resource: typeof record.resource === "string" ? record.resource : undefined,
+    clientId: clientIdValue,
+    resource: resourceValue,
     scopes,
   };
 };
@@ -118,7 +132,7 @@ export const createOAuthRouter = (options: OAuthRouterOptions) => {
   router.post("/oauth2/token", async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { form } = await bodyToForm(req);
-      const registry = options.refreshRegistry();
+      const registry = options.getRegistry();
       const clientIdParam = form.get("client_id") ?? undefined;
       const client = clientIdParam ? registry.getById(clientIdParam) : undefined;
 
@@ -220,7 +234,6 @@ export const createOAuthRouter = (options: OAuthRouterOptions) => {
       }
 
       const upstreamPayload = await upstreamResponse.json();
-      const registry = options.refreshRegistry();
 
       let session = null;
       if (token) {
@@ -230,7 +243,32 @@ export const createOAuthRouter = (options: OAuthRouterOptions) => {
         session = normalizeSession(sessionRaw);
       }
 
-      const client = session?.clientId ? registry.getById(session.clientId) : undefined;
+      const registry = options.getRegistry();
+      let client: MCPClient | undefined;
+      if (session?.clientId) {
+        client = registry.getById(session.clientId);
+      }
+
+      const payloadClientId =
+        upstreamPayload && typeof upstreamPayload === "object"
+          ? (upstreamPayload as Record<string, unknown>).client_id
+          : undefined;
+      if (!client && typeof payloadClientId === "string" && payloadClientId.length > 0) {
+        client = registry.getById(payloadClientId);
+      }
+
+      const requestClientId = form.get("client_id") ?? undefined;
+      if (!client && typeof requestClientId === "string" && requestClientId.length > 0) {
+        client = registry.getById(requestClientId);
+      }
+
+      if (!client) {
+        const firstClient = registry.list()[0];
+        if (firstClient) {
+          client = firstClient;
+        }
+      }
+
       const config = options.getConfig();
       const normalized = buildIntrospectionResponse({
         payload: upstreamPayload,

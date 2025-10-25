@@ -12,7 +12,7 @@ import type { Server } from "node:http";
 import { resolveAllowedOrigins } from "./config/origins";
 import { renderConsentPage } from "./ui/consentPage";
 import { renderLoginPage } from "./ui/loginPage";
-import { auth, closeAuth, getMcpConfig, refreshMcpRegistry } from "./auth";
+import { auth, closeAuth, getMcpConfig, getMcpRegistry, refreshMcpRegistry } from "./auth";
 import { buildMcpServersDocument, enrichOpenIdConfiguration } from "./mcp/metadataBuilder";
 import { adaptFetchHandler } from "./routes/httpUtils";
 import { createOAuthRouter } from "./routes/oauthRouter";
@@ -94,7 +94,7 @@ export const createApp = (options: CreateAppOptions = {}): Application => {
   const oauthRouter = createOAuthRouter({
     auth: authInstance,
     baseUrl: baseURL,
-    refreshRegistry: () => refreshMcpRegistry(),
+    getRegistry: () => getMcpRegistry(),
     getConfig: () => getMcpConfig(),
   });
 
