@@ -27,6 +27,10 @@ This project provisions a standalone Better Auth server backed by SQLite and pre
    - `OIDC_LOGIN_PATH`: path to the login UI that should handle OIDC `prompt=login` flows (defaults to `/login`).
    - `OIDC_CONSENT_PATH`: path that renders a consent screen and posts to `/api/auth/oauth2/consent` (defaults to `/consent`).
    - `MCP_RESOURCE`: identifier returned in the protected-resource metadata (defaults to the server base URL).
+   - `MCP_DEFAULT_SCOPES`: space- or comma-separated scopes applied when an MCP client omits the `scopes` field (defaults to `openid`).
+   - `MCP_CLIENTS`: JSON array describing MCP clients (id, origin, resource, scopes, redirectUri). Leave as `[]` until you are ready to onboard a client.
+   - `MCP_ENFORCE_SCOPE_ALIGNMENT`: set to `true` (default) to block clients that request scopes outside of the configured catalogue.
+   - `MCP_COMPLIANCE_CLIENT_SECRET`: optional shared secret used by the compliance harness when invoking token/introspection endpoints.
 3. Generate the database schema (optional but recommended when first bootstrapping):
    ```bash
    pnpm auth:generate
@@ -65,6 +69,54 @@ To verify the hosted deployment, supply the production base URL:
 pnpm smoke:discovery -- --base-url=https://auth.onemainarmy.com
 ```
 
+### MCP compliance
+
+In addition to the discovery smoke test, run the MCP compliance harness to validate the registry, handshake, and session endpoints:
+
+```bash
+pnpm mcp:compliance -- --base-url=https://auth.onemainarmy.com
+```
+
+Use the registry helper to print the currently configured MCP clients:
+
+```bash
+pnpm mcp:register -- --base-url=https://auth.onemainarmy.com
+```
+
+#### Optional CI hook
+
+Add a staging contract check to your CI pipeline so regressions surface before deploys. For GitHub Actions:
+
+```yaml
+name: mcp-compliance
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+jobs:
+  compliance:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Run MCP compliance suite
+        env:
+          BETTER_AUTH_URL: https://staging-auth.example.com
+          MCP_COMPLIANCE_CLIENT_SECRET: ${{ secrets.MCP_COMPLIANCE_CLIENT_SECRET }}
+        run: pnpm mcp:compliance -- --base-url="$BETTER_AUTH_URL"
+```
+
+This hook mirrors AC4: it exercises the staging deployment and fails fast when discovery, handshake, token, introspection, or session contracts drift.
+
 ## Production build
 
 ```bash
@@ -75,7 +127,9 @@ BETTER_AUTH_SECRET=your-secret pnpm start
 ## Project Structure
 
 - `src/auth.ts` – Better Auth configuration (SQLite database, Google provider stub).
-- `src/server.ts` – Express server that forwards `/api/auth` traffic to Better Auth and serves `.well-known` discovery documents.
+- `src/server.ts` – Express server that forwards `/api/auth` traffic to Better Auth and serves `.well-known` discovery documents, MCP metadata, and registry-backed endpoints.
+- `src/mcp/` – Registry helpers and metadata builders powering the MCP compatibility layer.
+- `scripts/mcp-compliance.mjs` – CLI harness that validates the MCP discovery metadata, handshake endpoint, and bearer challenge.
 - `better-auth.sqlite` – SQLite database file (created on first run).
 
 ## Next Steps
