@@ -1,0 +1,166 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>central-mcp-compatibility</epicId>
+    <storyId>3</storyId>
+    <title>Automate MCP compliance verification</title>
+    <status>Todo</status>
+    <generatedAt>2025-10-25T00:45:43Z</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/story-central-mcp-compatibility-3.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>As an operator</asA>
+    <iWant>I want automated tooling that validates MCP alignment in dev and production</iWant>
+    <soThat>So I can confidently onboard new MCP servers and detect regressions early</soThat>
+    <tasks>
+- [ ] Implement `scripts/mcp-compliance.mjs` using node-fetch + Zod validation.
+- [ ] Add npm scripts `mcp:compliance` and `mcp:register`.
+- [ ] Extend `.env.example` and README with MCP variables and compliance instructions.
+- [ ] Document operator checklist in `docs/integration/mcp-auth-checklist.md`.
+- [ ] Add contract test invoking script in CI (optional, document fallback).
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+- [ ] `scripts/mcp-compliance.mjs --base-url=&lt;url&gt;` validates handshake, token, introspection, and session endpoints with Zod schemas.
+- [ ] `pnpm mcp:compliance -- --base-url=https://auth.onemainarmy.com` succeeds post-deploy.
+- [ ] README and `docs/integration/mcp-auth-checklist.md` explain required env vars, registry config, and compliance workflow.
+- [ ] Optional CI hook (documented) demonstrates how to run compliance suite against staging.
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/epics.md</path>
+        <title>better-auth-central - Epic Breakdown</title>
+        <section>Story 3: Automate MCP compliance verification</section>
+        <snippet>Story 3 commits to delivering scripts and documentation so operators can verify MCP alignment in dev and production. It mandates `scripts/mcp-compliance.mjs` to accept `--base-url` and validate handshake, token, introspection, and session endpoints with Zod schemas. The plan also requires a `pnpm mcp:compliance` command, documentation updates, and an optional CI hook against staging.</snippet>
+      </doc>
+      <doc>
+        <path>docs/tech-spec.md</path>
+        <title>better-auth-central - Technical Specification</title>
+        <section>Technical Approach</section>
+        <snippet>Create a single integration contract covering OAuth endpoints, discovery metadata, and runtime session APIs expected by ChatGPT MCP clients. The server operates as a “Compatibility Hub” that registers MCP servers, normalizes OAuth2 responses, exposes session helpers, and ships an automated compliance harness to guard alignment.</snippet>
+      </doc>
+      <doc>
+        <path>docs/integration/mcp-auth-checklist.md</path>
+        <title>MCP Authentication Integration Checklist</title>
+        <section>Verification workflow</section>
+        <snippet>The checklist instructs operators to populate MCP environment variables, ensure trusted origins, and run `pnpm mcp:compliance -- --base-url=https://auth.example.com` to validate discovery and session behaviour. It also highlights the optional `pnpm mcp:register` mode for listing configured clients and metadata endpoints.</snippet>
+      </doc>
+      <doc>
+        <path>docs/test-design-epic-1.md</path>
+        <title>Test Design: Epic 1 - Central MCP Compatibility Alignment</title>
+        <section>Story 3 Addendum: Automate MCP Compliance Verification</section>
+        <snippet>The story-level test design flags risk R3-SEC-1 if the compliance CLI stops after metadata checks and prescribes Zod-backed validation for token, introspection, and session flows. It schedules P0 integration tests to iterate every registry client, enforce origin matching, and snapshot failure messaging, budgeting roughly 12 hours of effort.</snippet>
+      </doc>
+      <doc>
+        <path>README.md</path>
+        <title>better-auth-server README</title>
+        <section>MCP compliance</section>
+        <snippet>The README directs operators to run `pnpm mcp:compliance -- --base-url=https://auth.onemainarmy.com` alongside `pnpm mcp:register -- --base-url=...` so production deployments can be verified and registry entries inspected before onboarding new MCP servers.</snippet>
+      </doc>
+    </docs>
+    <code>
+      <artifact>
+        <path>scripts/mcp-compliance.mjs</path>
+        <kind>cli-script</kind>
+        <symbol>main</symbol>
+        <lines>1-200</lines>
+        <reason>Implements the MCP compliance harness invoked by `pnpm mcp:compliance`, performing discovery reads, handshake validation, and session challenge checks.</reason>
+      </artifact>
+      <artifact>
+        <path>scripts/__tests__/mcp-compliance.test.mjs</path>
+        <kind>node-test</kind>
+        <symbol>describe("scripts/mcp-compliance")</symbol>
+        <lines>1-200</lines>
+        <reason>Unit test suite using stub HTTP server to assert success path and clientId mismatch failure conditions for the compliance CLI.</reason>
+      </artifact>
+      <artifact>
+        <path>scripts/__tests__/mcp-compliance.atdd.test.mjs</path>
+        <kind>atdd</kind>
+        <symbol>describe("[ATDD] MCP compliance CLI (RED phase)")</symbol>
+        <lines>1-220</lines>
+        <reason>ATDD harness that defines expected token, introspection, session, and multi-client handshake coverage ensuring the CLI exercises every endpoint.</reason>
+      </artifact>
+      <artifact>
+        <path>package.json</path>
+        <kind>config</kind>
+        <symbol>scripts.mcp:compliance</symbol>
+        <lines>1-120</lines>
+        <reason>Adds npm scripts `mcp:compliance` and `mcp:register` so operators can run the CLI against arbitrary base URLs.</reason>
+      </artifact>
+      <artifact>
+        <path>.env.example</path>
+        <kind>env-template</kind>
+        <symbol>MCP_* variables</symbol>
+        <lines>1-200</lines>
+        <reason>Documents MCP environment variables (`MCP_RESOURCE`, `MCP_CLIENTS`, etc.) that the compliance workflow depends on.</reason>
+      </artifact>
+      <artifact>
+        <path>README.md</path>
+        <kind>docs</kind>
+        <symbol>Section "MCP compliance"</symbol>
+        <lines>60-110</lines>
+        <reason>Operator-facing instructions for running `pnpm mcp:compliance` and `pnpm mcp:register` against production or staging environments.</reason>
+      </artifact>
+    </code>
+    <dependencies>
+      <ecosystem name="node">
+        <package name="zod" version="^3.23.8" />
+        <package name="@sinclair/typebox" version="^0.32.35" dev="true" />
+      </ecosystem>
+    </dependencies>
+  </artifacts>
+
+  <constraints>Compliance CLI must respect the MCP registry configuration, iterate every registered client, enforce origin matching, and validate OAuth endpoints while leaving implementation-side security headers intact. Maintain deterministic schema validation (TypeBox/Zod) and 401 bearer challenges for unauthenticated session calls.</constraints>
+  <interfaces>
+    <interface>
+      <name>/.well-known/mcp-servers.json</name>
+      <kind>REST endpoint</kind>
+      <signature>GET /.well-known/mcp-servers.json</signature>
+      <path>scripts/mcp-compliance.mjs</path>
+    </interface>
+    <interface>
+      <name>/.well-known/oauth-authorization-server</name>
+      <kind>REST endpoint</kind>
+      <signature>GET /.well-known/oauth-authorization-server</signature>
+      <path>scripts/mcp-compliance.mjs</path>
+    </interface>
+    <interface>
+      <name>/api/auth/mcp/handshake</name>
+      <kind>REST endpoint</kind>
+      <signature>GET /api/auth/mcp/handshake?client_id=&lt;id&gt;</signature>
+      <path>scripts/mcp-compliance.mjs</path>
+    </interface>
+    <interface>
+      <name>/api/auth/mcp/session</name>
+      <kind>REST endpoint</kind>
+      <signature>GET /api/auth/mcp/session</signature>
+      <path>scripts/mcp-compliance.mjs</path>
+    </interface>
+    <interface>
+      <name>/oauth2/token</name>
+      <kind>REST endpoint</kind>
+      <signature>POST /oauth2/token</signature>
+      <path>scripts/__tests__/mcp-compliance.atdd.test.mjs</path>
+    </interface>
+    <interface>
+      <name>/oauth2/introspect</name>
+      <kind>REST endpoint</kind>
+      <signature>POST /oauth2/introspect</signature>
+      <path>scripts/__tests__/mcp-compliance.atdd.test.mjs</path>
+    </interface>
+  </interfaces>
+  <tests>
+    <standards>Adhere to Epic 1 Story 3 ATDD guidance: run CLI harness tests (`pnpm test scripts/__tests__/mcp-compliance.test.mjs`) plus RED-phase ATDD suite to prove token/introspect/session coverage. Maintain compliance with docs/test-design-epic-1.md risk mitigations (R3-SEC-1, R3-TECH-1, R3-OPS-1).</standards>
+    <locations>scripts/__tests__/mcp-compliance.test.mjs; scripts/__tests__/mcp-compliance.atdd.test.mjs; tests/api/mcp-contract.test.mjs; docs/atdd-checklist-central-mcp-compatibility-3.md</locations>
+    <ideas>
+      AC1: Extend CLI to fetch `/oauth2/token` using Zod schema validation and fail on drift; cover via ATDD metrics.
+      AC2: Iterate all registry servers with Origin headers derived from `/.well-known/mcp-servers.json`; record handshake counts in ATDD suite.
+      AC3: Validate introspection payload against schema and surface detailed failure output for operators.
+      AC4: Exercise session endpoint with authenticated and unauthenticated flows, ensuring 401 challenge and documenting CI hook for staging runs.
+    </ideas>
+  </tests>
+</story-context>

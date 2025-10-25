@@ -1,87 +1,75 @@
 ---
 title: BMM Workflow Status
-created: 2025-03-03
-updated: 2025-10-16
+created: 2025-10-17
+updated: 2025-10-24
 project: better-auth-central
 field_type: brownfield
 project_type: backend
-project_level: 0
+project_level: 1
 communication_language: English
 ---
 
 # Workflow Status
 
 **Current Phase:** 4-Implementation
-**Current Workflow:** story-approved (Story todo-auth-hardening) - Complete
-**Overall Progress:** 53%
+**Current Workflow:** story-done (Story 1)
+**Overall Progress:** 72%
 
 ## Planned Workflow Journey
 
 | Phase | Step | Agent | Description | Status |
 | --- | --- | --- | --- | --- |
-| 1-Analysis | document-project | Analyst | Generate brownfield codebase documentation | Complete |
-| 1-Analysis | product-brief | Analyst | Define the product vision and strategic brief | Complete |
-| 2-Plan | tech-spec | Architect | Create technical specification and stories | Complete |
-| 4-Implementation | create-story | SM | Draft stories from backlog | Planned |
-| 4-Implementation | story-ready | SM | Approve story for dev | Planned |
-| 4-Implementation | story-context | SM | Generate context XML | Planned |
-| 4-Implementation | dev-story | DEV | Implement stories | Planned |
-| 4-Implementation | story-approved | DEV | Mark complete, advance queue | Planned |
+| 0-Documentation | document-project | Analyst | Initialize documentation if missing | Optional |
+| 1-Analysis | brainstorm-project | Analyst | Explore solution ideas | Optional |
+| 1-Analysis | research | Analyst | Gather supporting data | Optional |
+| 2-Planning | tech-spec | PM | Produce Level 1 tech spec + epics/stories | Complete |
+| 4-Implementation | sprint-planning | SM | Initialize sprint tracking | Next |
+| 4-Implementation | create-story | SM | Draft stories from epics | Pending |
+| 4-Implementation | story-context | SM | Generate story context | Pending |
+| 4-Implementation | dev-story | DEV | Implement stories | Pending |
+| 4-Implementation | review-story | DEV | Peer review changes | Pending |
+| 4-Implementation | story-done | DEV | Verify DoD and mark done | Pending |
 
 ## Current Status
 
-**Current Step:** story-approved (Story todo-auth-hardening)
-**Next Step:** retrospective (PM agent)
-**Next Command:** bmad pm retrospective
+**Current Step:** Close MCP registry story after approved review
+**Next Step:** Run story-done workflow for Story 1
+**Next Command:** bmad dev story-done
 
 ## Decisions Log
 
-- **2025-10-16**: Completed document-project workflow (initial_scan mode, exhaustive scan). Documentation available in docs/. Next: product-brief.
-- **2025-10-16**: Completed product-brief workflow. Product brief document generated and saved. Next: Proceed to plan-project workflow to create Product Requirements Document (PRD).
-- **2025-10-16**: Level 0 tech-spec and story generation completed. Skipping Phase 3 (solutioning) - moving directly to Phase 4 (implementation). Single story (story-todo-auth-hardening.md) drafted and ready for review.
+- **2025-10-17**: Updated Level 1 tech spec, epics, and story backlog for MCP compatibility alignment. Transitioning to sprint planning.
+- **2025-10-24**: Story 1 implemented and moved to review with MCP registry, metadata, and compliance tooling in place.
+- **2025-10-24**: Test Architect delivered ATDD suite for Story 2 (token/introspection/session/handshake) documenting RED expectations.
+- **2025-10-24**: Test design for Epic 1 Story 2 completed; MCP contract coverage and risk plan documented.
 
 ### Implementation Progress (Phase 4 Only)
+#### BACKLOG
+- story-central-mcp-compatibility-3.md (Status: Todo, Points: 3)
 
-#### BACKLOG (Not Yet Drafted)
+#### READY
+- story-central-mcp-compatibility-2.md (Status: Ready, Points: 5)
 
-| Epic                          | Story | ID  | Title | File |
-| ----------------------------- | ----- | --- | ----- | ---- |
-| (empty - Level 0 has only 1 story) |       |     |       |      |
-
-**Total in backlog:** 0 stories
-
-#### TODO (Needs Drafting)
-
-(No stories awaiting drafting.)
-
-#### IN PROGRESS (Approved for Development)
-
-(No story currently in progress - all stories complete!)
-
-#### DONE (Completed Stories)
-
-| Story ID | File | Completed Date | Points |
-| -------- | ---- | -------------- | ------ |
-| todo-auth-hardening | story-todo-auth-hardening.md | 2025-10-16 | 3 |
-
-**Total completed:** 1 stories
-
+#### IN REVIEW
+- story-central-mcp-compatibility-1.md (Status: Review, Points: 5)
 
 ### Artifacts Generated
 
-| Artifact | Status | Location | Generated |
-| -------- | ------ | -------- | ---------- |
-| tech-spec.md | Complete | docs/tech-spec.md | 2025-10-16 |
-| story-todo-auth-hardening.md | Review Passed | docs/stories/story-todo-auth-hardening.md | 2025-10-16 |
+- docs/tech-spec.md
+- docs/epics.md
+- docs/stories/story-central-mcp-compatibility-1.md
+- docs/stories/story-central-mcp-compatibility-2.md
+- docs/stories/story-central-mcp-compatibility-3.md
+- docs/test-design-epic-1.md
+- docs/atdd-checklist-central-mcp-compatibility-2.md
+- tests/api/mcp-contract.test.mjs
+- tests/support/factories/mcp.factory.mjs
+- tests/support/fixtures/app.fixture.mjs
 
 ### Next Action Required
 
-**What to do next:** All stories complete! Run retrospective workflow or close project.
+**What to do next:** Review Story 1 implementation outputs and advance if approved.
 
-**Command to run:** bmad pm retrospective
+**Command to run:** bmad dev review-story
 
-**Agent to load:** PM agent (`bmad/bmm/agents/pm.md`)
-- **2025-10-16**: Completed dev-story for Story todo-auth-hardening (Harden Better Auth for ChatGPT Todo MCP integration). All tasks complete, tests passing. Story status: Ready for Review. Next: run story-approved after QA.
-- **2025-10-16**: Completed review-story for Story todo-auth-hardening. Review outcome: Approved. No follow-up action items.
-- **2025-10-16**: Story todo-auth-hardening approved and marked done. Queue cleared; proceed to retrospective.
-
+**Agent to load:** DEV agent (`bmad/bmm/agents/dev.md`)
