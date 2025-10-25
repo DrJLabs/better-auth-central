@@ -1,0 +1,152 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>central-mcp-compatibility</epicId>
+    <storyId>2</storyId>
+    <title>Align OAuth + MCP session endpoints</title>
+    <status>Ready</status>
+    <generatedAt>2025-10-24T21:36:56Z</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/story-central-mcp-compatibility-2.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>ChatGPT MCP client developer</asA>
+    <iWant>the Better Auth central server to return MCP-compliant payloads for token, introspection, and session helpers</iWant>
+    <soThat>my apps integrate without custom parsers or patches</soThat>
+    <tasks>Refactor src/routes/oauthRouter.ts to use shared response builders; Add src/routes/mcpRouter.ts for handshake/session endpoints; Update src/auth.ts to negotiate scopes and inject MCP metadata; Create src/mcp/schemas.ts with Zod contracts for responses; Write contract tests in src/__tests__/mcp-compliance.test.mjs; Ensure denied origins and scope mismatches emit structured logs; Add story-aligned IDs, priority markers, and GWT scaffolding to src/__tests__/mcp-compliance.test.mjs per TEA review; Extract reusable MCP registry/session fixtures and data factories for test setup and apply to compliance suite</tasks>
+  </story>
+
+  <acceptanceCriteria>/api/auth/oauth2/token returns { access_token, token_type, expires_in, scope, client_id, resource } with correct types; /api/auth/oauth2/introspect returns MCP schema fields including client_id, resource, issued_token_type, and active flag; /api/auth/mcp/session returns { userId, clientId, scopes, issuedAt, expiresAt, resource } when session is valid; /api/auth/mcp/handshake validates requesting origin against registry and returns OAuth endpoints, consent URL, discovery URLs</acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/epics.md</path>
+        <title>better-auth-central - Epic Breakdown</title>
+        <section>Story 2: Align OAuth + MCP session endpoints</section>
+        <snippet>Summary: Normalize OAuth2 token, introspection, and session helper endpoints to the exact schema ChatGPT MCP clients expect. `/api/auth/oauth2/token` returns payload with `access_token`, `token_type`, `expires_in`, `scope`, `client_id`, and `resource`. `/api/auth/oauth2/introspect` returns the same JSON structure validated by the compliance suite (active, exp, scope, client_id, resource, issued_token_type).</snippet>
+      </doc>
+      <doc>
+        <path>docs/tech-spec.md</path>
+        <title>better-auth-central - Technical Specification</title>
+        <section>Technical Approach</section>
+        <snippet>Create a single integration contract that covers OAuth endpoints, discovery metadata, and runtime session APIs expected by ChatGPT MCP clients. The central Better Auth server becomes the “Compatibility Hub” that registers MCP servers with explicit scopes, generates discovery metadata, normalizes OAuth2 responses, and exposes MCP session helpers.</snippet>
+      </doc>
+      <doc>
+        <path>docs/integration/mcp-auth-checklist.md</path>
+        <title>MCP Authentication Integration Checklist</title>
+        <section>Prerequisites</section>
+        <snippet>Populate the environment variables `MCP_CLIENTS`, `MCP_DEFAULT_SCOPES`, and `MCP_ENFORCE_SCOPE_ALIGNMENT` before booting the server. `BETTER_AUTH_TRUSTED_ORIGINS` must include the MCP client origin so CORS handshakes succeed. At runtime the registry can be refreshed without restart by updating the environment variables and hitting any of `/.well-known/oauth-authorization-server`, `/.well-known/mcp-servers.json`, or `/api/auth/mcp/handshake`.</snippet>
+      </doc>
+      <doc>
+        <path>docs/product-brief-todo-app-integration-2025-10-16.md</path>
+        <title>Product Brief: todo-app integration</title>
+        <section>Proposed Solution</section>
+        <snippet>Deliver a hardened Better Auth central server configuration so the ChatGPT Todo MCP client relies on consistent OAuth discovery, session introspection, and consent flows. Cross-origin cookies, trusted origins, and smoke tests on the discovery endpoints are required foundations.</snippet>
+      </doc>
+      <doc>
+        <path>docs/chatgpt-todo-auth-alignment.md</path>
+        <title>ChatGPT Todo Integration Checklist</title>
+        <section>1. CORS &amp; Trusted Origins</section>
+        <snippet>Ensure `src/server.ts` allows credentialed requests from localhost and production Todo origins, mirroring the same list in Better Auth `trustedOrigins`. Session helpers in `src/auth.ts` must keep secure cookie settings aligned across those hosts.</snippet>
+      </doc>
+      <doc>
+        <path>docs/test-design-epic-1.md</path>
+        <title>Test Design: Epic 1 - Central MCP Compatibility Alignment</title>
+        <section>Risk Assessment &amp; Coverage Plan</section>
+        <snippet>Identifies MCP contract risks (token, introspection, session, handshake) with P0 scenarios mapped to new API contract tests and 18.5 hours of estimated effort. Serves as the test blueprint that the ATDD suite now enforces.</snippet>
+      </doc>
+    </docs>
+    <code>
+      <artifact>
+        <path>src/server.ts</path>
+        <kind>server</kind>
+        <symbol>createApp</symbol>
+        <lines>1-330</lines>
+        <reason>Express entry point that mounts `/.well-known` metadata plus `/api/auth/mcp/handshake` and `/api/auth/mcp/session`; MCP-compliant responses must extend these handlers.</reason>
+      </artifact>
+      <artifact>
+        <path>src/auth.ts</path>
+        <kind>auth</kind>
+        <symbol>auth</symbol>
+        <lines>1-200</lines>
+        <reason>Better Auth configuration wiring the MCP plugin, scope negotiation, and registry refresh utilities reused by the MCP routes.</reason>
+      </artifact>
+      <artifact>
+        <path>src/mcp/registry.ts</path>
+        <kind>module</kind>
+        <symbol>reloadMcpRegistry</symbol>
+        <lines>1-160</lines>
+        <reason>Central registry for MCP clients and scopes; handshake/token shaping should reuse its lookups.</reason>
+      </artifact>
+      <artifact>
+        <path>src/mcp/metadataBuilder.ts</path>
+        <kind>module</kind>
+        <symbol>enrichOpenIdConfiguration</symbol>
+        <lines>1-120</lines>
+        <reason>Generates MCP metadata fields surfaced by handshake responses; keeps endpoints consistent with discovery documents.</reason>
+      </artifact>
+      <artifact>
+        <path>src/__tests__/server.test.mjs</path>
+        <kind>test</kind>
+        <symbol>server</symbol>
+        <lines>1-260</lines>
+        <reason>Contract tests validating handshake and session payloads; updates must satisfy these assertions.</reason>
+      </artifact>
+      <artifact>
+        <path>tests/api/mcp-contract.test.mjs</path>
+        <kind>test</kind>
+        <symbol>MCP OAuth contract expectations (RED)</symbol>
+        <lines>1-150</lines>
+        <reason>ATDD suite covering MCP token, introspection, session, and handshake contracts. Currently RED, guiding implementation to surface registry-driven fields.</reason>
+      </artifact>
+    </code>
+    <dependencies>
+      <ecosystem name="node">
+        <package name="better-auth" version="^1.3.27" />
+        <package name="express" version="^5.1.0" />
+        <package name="zod" version="^3.23.8" />
+        <package name="@sinclair/typebox" version="^0.32.35" dev="true" />
+        <package name="supertest" version="^7.1.4" dev="true" />
+      </ecosystem>
+    </dependencies>
+  </artifacts>
+
+  <constraints>Reuse the existing MCP registry for client lookup and scope negotiation; preserve the CORS restrictions enforced by createApp so only trusted origins reach MCP endpoints; emit structured JSON errors for origin mismatches or invalid tokens; keep response builders aligned with Better Auth plugin contracts and avoid bypassing established security headers.</constraints>
+  <interfaces>
+    <interface>
+      <name>/api/auth/mcp/handshake</name>
+      <kind>REST endpoint</kind>
+      <signature>GET /api/auth/mcp/handshake?client_id=&lt;id&gt;</signature>
+      <path>src/server.ts</path>
+    </interface>
+    <interface>
+      <name>/api/auth/mcp/session</name>
+      <kind>REST endpoint</kind>
+      <signature>GET /api/auth/mcp/session</signature>
+      <path>src/server.ts</path>
+    </interface>
+    <interface>
+      <name>/api/auth/oauth2/token</name>
+      <kind>REST endpoint</kind>
+      <signature>POST /api/auth/oauth2/token</signature>
+      <path>src/auth.ts</path>
+    </interface>
+    <interface>
+      <name>/api/auth/oauth2/introspect</name>
+      <kind>REST endpoint</kind>
+      <signature>POST /api/auth/oauth2/introspect</signature>
+      <path>src/auth.ts</path>
+    </interface>
+  </interfaces>
+  <tests>
+    <standards>Follow the Epic 1 test design and ATDD checklist: run `pnpm test tests/api/mcp-contract.test.mjs` (RED) alongside existing Supertest suites, and keep `pnpm mcp:compliance` green for discovery endpoints. Maintain schema validation via Zod/TypeBox to guarantee MCP payload fidelity.</standards>
+    <locations>tests/api/mcp-contract.test.mjs; docs/atdd-checklist-central-mcp-compatibility-2.md; src/__tests__/server.test.mjs; src/__tests__/mcp.registry.test.mjs; scripts/mcp-compliance.mjs</locations>
+    <ideas>
+      AC1: Turn the ATDD token contract test green by injecting `client_id`, `resource`, and canonical scope strings via shared response builders.
+      AC2: Satisfy the ATDD introspection assertions by surfacing `client_id`, `resource`, and `issued_token_type` alongside `active` state.
+      AC3: Enrich the MCP session helper so the ATDD session test receives `resource`, `issuedAt`, and `expiresAt` sourced from registry metadata.
+      AC4: Extend handshake logic to supply consent and discovery endpoints so the ATDD handshake test flips from RED to GREEN; keep negative path coverage in `src/__tests__/server.test.mjs`.
+    </ideas>
+  </tests>
+</story-context>

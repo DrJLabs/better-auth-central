@@ -6,24 +6,17 @@ import express, {
   type Response as ExpressResponse,
 } from "express";
 import cors, { type CorsOptions } from "cors";
-import { fromNodeHeaders, toNodeHandler } from "better-auth/node";
-import { oAuthDiscoveryMetadata, oAuthProtectedResourceMetadata } from "better-auth/plugins";
+import { toNodeHandler } from "better-auth/node";
+import { oAuthProtectedResourceMetadata } from "better-auth/plugins";
 import type { Server } from "node:http";
 import { resolveAllowedOrigins } from "./config/origins";
 import { renderConsentPage } from "./ui/consentPage";
 import { renderLoginPage } from "./ui/loginPage";
-import { auth, closeAuth } from "./auth";
-import { Readable } from "node:stream";
-import { pipeline } from "node:stream/promises";
-import type { ReadableStream as NodeReadableStream } from "node:stream/web";
-
-const FORWARDED_HEADER_BLOCKLIST = new Set([
-  "access-control-allow-origin",
-  "access-control-allow-credentials",
-  "access-control-allow-methods",
-  "access-control-allow-headers",
-  "access-control-max-age",
-]);
+import { auth, closeAuth, getMcpConfig, refreshMcpRegistry } from "./auth";
+import { buildMcpServersDocument, enrichOpenIdConfiguration } from "./mcp/metadataBuilder";
+import { adaptFetchHandler } from "./routes/httpUtils";
+import { createOAuthRouter } from "./routes/oauthRouter";
+import { createMcpRouter } from "./routes/mcpRouter";
 
 type AuthLike = typeof auth;
 
@@ -33,80 +26,6 @@ export interface CreateAppOptions {
   consentPath?: string;
 }
 
-const sendFetchResponse = async (
-  fetchResponse: globalThis.Response,
-  res: ExpressResponse,
-): Promise<void> => {
-  res.status(fetchResponse.status);
-
-  fetchResponse.headers.forEach((value, key) => {
-    if (FORWARDED_HEADER_BLOCKLIST.has(key.toLowerCase())) {
-      return;
-    }
-    res.append(key, value);
-  });
-
-  const body = fetchResponse.body;
-  if (!body) {
-    const payload = await fetchResponse.text();
-    if (payload.length > 0) {
-      res.send(payload);
-      return;
-    }
-
-    res.end();
-    return;
-  }
-
-  // The Fetch API returns the DOM `ReadableStream`, while Node's helper expects the
-  // `node:stream/web` flavour. The cast links the two since they are compatible at runtime.
-  const nodeStream = Readable.fromWeb(body as unknown as NodeReadableStream);
-
-  try {
-    await pipeline(nodeStream, res);
-  } catch (error) {
-    const err = error as NodeJS.ErrnoException;
-    if (err?.code === "ERR_STREAM_PREMATURE_CLOSE") {
-      return;
-    }
-    throw error;
-  }
-};
-
-const createFetchRequest = (req: ExpressRequest, baseUrl: string): globalThis.Request => {
-  const url = new URL(req.originalUrl, baseUrl);
-  const headers = fromNodeHeaders(req.headers);
-
-  const hasBody = req.method !== "GET" && req.method !== "HEAD";
-  const requestInit: RequestInit & { duplex?: "half" } = {
-    method: req.method,
-    headers,
-  };
-
-  if (hasBody) {
-    // Node's `Request` constructor accepts Readable streams, but `BodyInit` does not capture
-    // that, so we cast the Express request stream before handing it off.
-    requestInit.body = req as unknown as BodyInit;
-    requestInit.duplex = "half";
-  }
-
-  return new Request(url, requestInit);
-};
-
-const adaptFetchHandler =
-  (
-    handler: (request: globalThis.Request) => Promise<globalThis.Response>,
-    baseUrl: string,
-  ): RequestHandler =>
-  async (req: ExpressRequest, res: ExpressResponse, next: NextFunction) => {
-    try {
-      const fetchResponse = await handler(createFetchRequest(req, baseUrl));
-      await sendFetchResponse(fetchResponse, res);
-    } catch (error) {
-      next(error);
-    }
-  };
-
 export const createApp = (options: CreateAppOptions = {}): Application => {
   const app = express();
   // behind Traefik/HTTPS; trust X-Forwarded-* so secure cookies & redirects work
@@ -114,6 +33,14 @@ export const createApp = (options: CreateAppOptions = {}): Application => {
 
   const allowedOrigins = resolveAllowedOrigins();
   const allowedOriginSet = new Set(allowedOrigins);
+
+  const syncAllowedOrigins = () => {
+    const latestOrigins = resolveAllowedOrigins();
+    allowedOriginSet.clear();
+    for (const origin of latestOrigins) {
+      allowedOriginSet.add(origin);
+    }
+  };
 
   const corsOptions: CorsOptions = {
     origin(origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) {
@@ -159,17 +86,64 @@ export const createApp = (options: CreateAppOptions = {}): Application => {
     authHandler(req, res).catch(next);
   };
 
-  app.use("/api/auth", handleAuth);
-
-  const discoveryHandler = adaptFetchHandler(oAuthDiscoveryMetadata(authInstance), baseURL);
   const protectedResourceHandler = adaptFetchHandler(
     oAuthProtectedResourceMetadata(authInstance),
     baseURL,
   );
 
-  app.get("/.well-known/oauth-authorization-server", discoveryHandler);
+  const oauthRouter = createOAuthRouter({
+    auth: authInstance,
+    baseUrl: baseURL,
+    refreshRegistry: () => refreshMcpRegistry(),
+    getConfig: () => getMcpConfig(),
+  });
+
+  const mcpRouter = createMcpRouter({
+    auth: authInstance,
+    baseUrl: baseURL,
+    refreshRegistry: () => refreshMcpRegistry(),
+    syncAllowedOrigins,
+  });
+
+  app.use("/api/auth/mcp", mcpRouter);
+  app.get("/.well-known/oauth-authorization-server", async (_req, res, next) => {
+    try {
+      const registry = refreshMcpRegistry();
+      syncAllowedOrigins();
+      const oauthConfig = (await authInstance.api.getMcpOAuthConfig()) ?? {};
+      const enriched = enrichOpenIdConfiguration(
+        baseURL,
+        registry,
+        oauthConfig as Record<string, unknown>,
+      );
+      res
+        .status(200)
+        .set("Content-Type", "application/json")
+        .set("Cache-Control", "no-store")
+        .json(enriched);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.get("/.well-known/mcp-servers.json", (_req, res, next) => {
+    try {
+      const registry = refreshMcpRegistry();
+      syncAllowedOrigins();
+      const document = buildMcpServersDocument(baseURL, registry.list());
+      res
+        .status(200)
+        .set("Content-Type", "application/json")
+        .set("Cache-Control", "no-store")
+        .json(document);
+    } catch (error) {
+      next(error);
+    }
+  });
 
   app.get("/.well-known/oauth-protected-resource", protectedResourceHandler);
+  app.use("/api/auth", oauthRouter);
+  app.use("/api/auth", handleAuth);
 
   app.get(loginPath, (_req, res) => {
     res

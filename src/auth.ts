@@ -7,6 +7,8 @@ import { DatabaseSync } from "node:sqlite";
 import path from "node:path";
 import { getDomain } from "tldts";
 import { resolveAllowedOrigins } from "./config/origins";
+import { loadMcpConfig } from "./config/mcp";
+import { initializeMcpRegistry, reloadMcpRegistry } from "./mcp/registry";
 
 const databasePath = path.resolve(process.cwd(), "better-auth.sqlite");
 const driver = process.env.BETTER_AUTH_DB_DRIVER ?? "better-sqlite3";
@@ -55,6 +57,9 @@ if (!socialProviders) {
 }
 
 const allowedOrigins = resolveAllowedOrigins(baseURL);
+const mcpConfig = loadMcpConfig(baseURL, allowedOrigins);
+let currentMcpConfig = mcpConfig;
+const mcpRegistry = initializeMcpRegistry(mcpConfig);
 
 const explicitCookieDomainValue = process.env.BETTER_AUTH_COOKIE_DOMAIN?.trim();
 const explicitCookieDomain = explicitCookieDomainValue
@@ -106,6 +111,11 @@ export const auth = betterAuth({
     mcp({
       loginPage,
       resource: mcpResource,
+      oidcConfig: {
+        loginPage,
+        consentPage,
+        scopes: mcpRegistry.getScopeCatalog(),
+      },
     }),
   ],
   advanced: {
@@ -131,4 +141,15 @@ export const closeAuth = () => {
 
   sqlite.close();
   databaseClosed = true;
+};
+
+export { getMcpRegistry } from "./mcp/registry";
+
+export const getMcpConfig = () => currentMcpConfig;
+
+export const refreshMcpRegistry = () => {
+  const latestAllowedOrigins = resolveAllowedOrigins(baseURL);
+  const updatedConfig = loadMcpConfig(baseURL, latestAllowedOrigins);
+  currentMcpConfig = updatedConfig;
+  return reloadMcpRegistry(updatedConfig);
 };

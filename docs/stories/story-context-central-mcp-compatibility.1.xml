@@ -1,0 +1,120 @@
+<story-context id="better-auth-central/story-context" v="1.0">
+  <metadata>
+    <epicId>central-mcp-compatibility</epicId>
+    <storyId>1</storyId>
+    <title>Establish MCP registry and metadata</title>
+    <status>Todo</status>
+    <generatedAt>2025-10-17</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/story-central-mcp-compatibility-1.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>As a platform operator</asA>
+    <iWant>I want the Better Auth central server to publish a canonical registry of MCP servers and expose discovery metadata</iWant>
+    <soThat>So ChatGPT apps can discover handshake and session endpoints without custom configuration</soThat>
+    <tasks>
+      Implement `src/config/mcp.ts` for registry schema + env parsing;
+      Create `src/mcp/registry.ts` with load/save helpers backed by Better Auth storage;
+      Implement `src/mcp/metadataBuilder.ts` that generates `.well-known` payloads;
+      Update `src/server.ts` to serve new endpoints and wire origin resolver;
+      Write `docs/integration/mcp-auth-checklist.md` covering registry setup;
+      Add integration tests verifying metadata payloads and auto-refresh behaviour
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    AC1: `src/mcp/registry.ts` stores MCP client entries with `id`, `origin`, `scopes`, `resource`, and `redirectUri`, validated via Zod schema;
+    AC2: `/.well-known/mcp-servers.json` lists all registered MCP servers with handshake and session URLs;
+    AC3: `/.well-known/openid-configuration` includes MCP extensions (`mcp_session_endpoint`, `mcp_handshake_endpoint`, `mcp_scopes_supported`);
+    AC4: Updating the registry (config or runtime) refreshes discovery metadata without restarting the server
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/tech-spec.md</path>
+        <title>better-auth-central - Technical Specification</title>
+        <section>Implementation Guide</section>
+        <snippet>Registry and metadata builder modules live under src/mcp/, with new `.well-known` endpoints exposing aggregated MCP discovery output and environment-driven configuration.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>Architecture Overview</title>
+        <section>API Design</section>
+        <snippet>Express hosts discovery endpoints such as `/.well-known/oauth-authorization-server`; the new registry must extend these surfaces without breaking the single-process monolith.</snippet>
+      </doc>
+      <doc>
+        <path>docs/epics.md</path>
+        <title>Epic Breakdown</title>
+        <section>Epic: Central MCP Compatibility Alignment</section>
+        <snippet>Story 1 focuses on building a typed registry and metadata documents so MCP clients integrate with a single base URL.</snippet>
+      </doc>
+    </docs>
+    <code>
+      <artifact>
+        <path>src/server.ts</path>
+        <kind>server</kind>
+        <symbol>createApp</symbol>
+        <lines>1-200</lines>
+        <reason>Current Express bootstrap that will mount the MCP metadata and registry routes; ensures middleware ordering stays consistent.</reason>
+      </artifact>
+      <artifact>
+        <path>src/auth.ts</path>
+        <kind>auth</kind>
+        <symbol>createAuth</symbol>
+        <lines>1-220</lines>
+        <reason>Better Auth initialization; registry module must plug into issuer metadata via this factory.</reason>
+      </artifact>
+      <artifact>
+        <path>src/config/origins.ts</path>
+        <kind>config</kind>
+        <symbol>resolveAllowedOrigins</symbol>
+        <lines>1-160</lines>
+        <reason>Origin resolver should feed MCP registry defaults so discovery metadata and CORS share a single source of truth.</reason>
+      </artifact>
+    </code>
+    <dependencies>
+      <ecosystem name="node">
+        <package name="better-auth" version="^1.3.27" />
+        <package name="express" version="^5.1.0" />
+        <package name="zod" version="^3.23.8" />
+        <package name="@sinclair/typebox" version="^0.32.35" dev="true" />
+      </ecosystem>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    Reuse the existing Better Auth singleton and Express app structure; persist registry data through the Better Auth storage layer rather than introducing new databases; keep all discovery outputs under the `/.well-known/` namespace and honour project-relative path conventions when referencing assets.
+  </constraints>
+  <interfaces>
+    <interface>
+      <name>/.well-known/mcp-servers.json</name>
+      <kind>REST discovery endpoint</kind>
+      <signature>GET /.well-known/mcp-servers.json</signature>
+      <path>src/mcp/metadataBuilder.ts</path>
+    </interface>
+    <interface>
+      <name>/.well-known/openid-configuration</name>
+      <kind>REST discovery endpoint</kind>
+      <signature>GET /.well-known/openid-configuration</signature>
+      <path>src/mcp/metadataBuilder.ts</path>
+    </interface>
+    <interface>
+      <name>MCP registry API</name>
+      <kind>TypeScript module</kind>
+      <signature>loadRegistry(config: MCPConfig): MCPRegistry</signature>
+      <path>src/mcp/registry.ts</path>
+    </interface>
+  </interfaces>
+  <tests>
+    <standards>Use Node test runner with Supertest for HTTP assertions and extend the compliance harness to validate discovery payloads against Zod schemas.</standards>
+    <locations>src/__tests__/; scripts/mcp-compliance.mjs</locations>
+    <ideas>
+      AC1: Load registry with fixture data and assert persisted JSON includes id, origin, scopes, resource, redirectUri;
+      AC2: Hit `/.well-known/mcp-servers.json` and assert each registered client is listed with handshake/session URLs;
+      AC3: Fetch `/.well-known/openid-configuration` verifying MCP extension fields exist and mirror registry values;
+      AC4: Update registry via runtime hook or config reload, then fetch metadata again to ensure changes appear without restarting the process
+    </ideas>
+  </tests>
+</story-context>
