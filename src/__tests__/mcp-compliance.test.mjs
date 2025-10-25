@@ -7,16 +7,6 @@ import {
   createRegistryClient,
 } from "./helpers/mcp-fixtures.mjs";
 
-const originalEnv = {
-  BETTER_AUTH_DB_DRIVER: process.env.BETTER_AUTH_DB_DRIVER,
-  BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET,
-  BETTER_AUTH_URL: process.env.BETTER_AUTH_URL,
-  BETTER_AUTH_TRUSTED_ORIGINS: process.env.BETTER_AUTH_TRUSTED_ORIGINS,
-  MCP_CLIENTS: process.env.MCP_CLIENTS,
-  MCP_DEFAULT_SCOPES: process.env.MCP_DEFAULT_SCOPES,
-  MCP_ENFORCE_SCOPE_ALIGNMENT: process.env.MCP_ENFORCE_SCOPE_ALIGNMENT,
-};
-
 const STORY_KEY = "1-2";
 const PRIORITY = {
   P0: "[P0]",
@@ -36,6 +26,7 @@ describe(`[Story ${STORY_KEY}] MCP compliance responses`, () => {
   let app;
   let registryClient;
   let sessionStore;
+  let restoreEnv;
 
   before(async () => {
     registryClient = createRegistryClient({
@@ -62,21 +53,17 @@ describe(`[Story ${STORY_KEY}] MCP compliance responses`, () => {
       ],
     });
 
-    ({ app, sessionStore } = harness);
+    ({ app, sessionStore, restoreEnv } = harness);
   });
 
   after(() => {
     if (sessionStore) {
       sessionStore.clear();
     }
-
-    Object.entries(originalEnv).forEach(([key, value]) => {
-      if (value === undefined) {
-        delete process.env[key];
-      } else {
-        process.env[key] = value;
-      }
-    });
+    if (restoreEnv) {
+      restoreEnv();
+      restoreEnv = undefined;
+    }
   });
 
   it(`${PRIORITY.P0}[${TEST_IDS.token}] normalizes token responses to MCP schema`, async () => {
@@ -141,8 +128,6 @@ describe(`[Story ${STORY_KEY}] MCP compliance responses`, () => {
   });
 
   it(`${PRIORITY.P0}[${TEST_IDS.tokenSanitized}] sanitizes forwarded scopes when enforcement is relaxed`, async () => {
-    const previousAlignment = process.env.MCP_ENFORCE_SCOPE_ALIGNMENT;
-
     const relaxedHarness = await buildMcpTestHarness({
       registryClient,
       sessions: [],
@@ -151,7 +136,8 @@ describe(`[Story ${STORY_KEY}] MCP compliance responses`, () => {
       },
     });
 
-    const { app: relaxedApp, sessionStore: relaxedStore } = relaxedHarness;
+    const { app: relaxedApp, sessionStore: relaxedStore, restoreEnv: restoreRelaxedEnv } =
+      relaxedHarness;
 
     try {
       const response = await request(relaxedApp)
@@ -175,11 +161,7 @@ describe(`[Story ${STORY_KEY}] MCP compliance responses`, () => {
       assert.equal(forwardedParams.get("scope"), "tasks.read");
     } finally {
       relaxedStore.clear();
-      if (previousAlignment === undefined) {
-        delete process.env.MCP_ENFORCE_SCOPE_ALIGNMENT;
-      } else {
-        process.env.MCP_ENFORCE_SCOPE_ALIGNMENT = previousAlignment;
-      }
+      restoreRelaxedEnv?.();
     }
   });
 

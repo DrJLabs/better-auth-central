@@ -15,7 +15,7 @@
 - `src/config/mcp.ts` (new) — define MCP capability flags, required scopes, and client registration schema.
 - `src/auth.ts` — surface MCP-aware trusted client configuration, enforce scope negotiation, and advertise supported grant types.
 - `src/server.ts` — expose MCP metadata routes (`/.well-known/mcp-servers.json`, handshake/session endpoints) and ensure origin cache refreshes.
-- `src/mcp/registry.ts` (new) — maintain in-memory + persistent registry of enabled MCP servers with origin, scopes, and metadata cache.
+- `src/mcp/registry.ts` (new) — maintain an in-memory registry of enabled MCP servers with origin, scopes, and metadata cache derived from environment configuration.
 - `src/mcp/metadataBuilder.ts` (new) — build discovery documents (JSON + `.well-known/` endpoints) from registry + config.
 - `scripts/mcp-compliance.mjs` (new) — run MCP compliance suite against local or remote base URL.
 - `src/__tests__/server.test.mjs` — contract tests validating MCP metadata and handshake/session payloads with TypeBox schemas.
@@ -34,7 +34,7 @@ Create a single integration contract that covers OAuth endpoints, discovery meta
 4. Exposes MCP session helpers (`/api/auth/mcp/session`, `/api/auth/mcp/handshake`) that wrap Better Auth session APIs but return the exact JSON structure the ChatGPT Todo and future MCP clients expect.
 5. Ships an automated compliance harness (`scripts/mcp-compliance.mjs` + contract tests) to guard the alignment going forward.
 
-All work remains within the existing Node + Express service; no extra services or databases are introduced. The registry persists to JSON under `better-auth.sqlite` via Better Auth plugin storage so deployments do not add new infrastructure.
+All work remains within the existing Node + Express service; no extra services or databases are introduced. The registry maintains an in-memory cache sourced from environment configuration so deployments do not add new infrastructure.
 
 ---
 
@@ -51,7 +51,7 @@ All work remains within the existing Node + Express service; no extra services o
 
 ## Technical Details
 
-- **MCP Registry**: `src/mcp/registry.ts` loads `MCP_CLIENTS` from config (JSON encoded array) and persists runtime overrides in Better Auth storage. Each client entry includes `id`, `origin`, `scopes`, `redirectUri`, and `resource`.
+- **MCP Registry**: `src/mcp/registry.ts` loads `MCP_CLIENTS` from config (JSON encoded array) and keeps an in-memory cache for lookups. Each client entry includes `id`, `origin`, `scopes`, `redirectUri`, and `resource`.
 - **Endpoint Alignment**:
   - `/api/auth/oauth2/token` returns `{ access_token, token_type, expires_in, scope, client_id, resource }` exactly matching MCP schema.
   - `/api/auth/oauth2/introspect` converts Better Auth boolean flags (`active`, `exp`, `sub`, `scope`) and appends `client_id`, `resource`, and `issued_token_type` fields.

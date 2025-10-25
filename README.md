@@ -26,6 +26,7 @@ This project provisions a standalone Better Auth server backed by SQLite and pre
    - `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`: obtained from Google Cloud Console. Leave empty initially if you plan to wire them in later.
    - `OIDC_LOGIN_PATH`: path to the login UI that should handle OIDC `prompt=login` flows (defaults to `/login`).
    - `OIDC_CONSENT_PATH`: path that renders a consent screen and posts to `/api/auth/oauth2/consent` (defaults to `/consent`).
+   - `OIDC_DYNAMIC_REGISTRATION`: set to `true` when you explicitly need dynamic client registration; defaults to `false` so production deployments keep the surface disabled unless required.
    - `MCP_RESOURCE`: identifier returned in the protected-resource metadata (defaults to the server base URL).
    - `MCP_DEFAULT_SCOPES`: space- or comma-separated scopes applied when an MCP client omits the `scopes` field (defaults to `openid`).
    - `MCP_CLIENTS`: JSON array describing MCP clients (id, origin, resource, scopes, redirectUri). Leave as `[]` until you are ready to onboard a client.
@@ -55,7 +56,7 @@ curl -fsS "$BETTER_AUTH_URL/.well-known/oauth-authorization-server" | jq
 curl -fsS "$BETTER_AUTH_URL/.well-known/oauth-protected-resource" | jq
 ```
 
-These responses must include a `registration_endpoint`, `jwks_uri`, and the resource metadata required by MCP clients. If `registration_endpoint` is missing, confirm `allowDynamicClientRegistration` remains enabled in `src/auth.ts`.
+These responses must include a `registration_endpoint`, `jwks_uri`, and the resource metadata required by MCP clients. If `registration_endpoint` is missing, confirm `OIDC_DYNAMIC_REGISTRATION=true` is set (dynamic registration is disabled by default for production safety).
 
 You can run the automated smoke check locally once the server is running:
 
@@ -83,6 +84,8 @@ Use the registry helper to print the currently configured MCP clients:
 pnpm mcp:register -- --base-url=https://auth.onemainarmy.com
 ```
 
+Both commands are exposed via the `mcp:*` scripts in `package.json` and backed by the `scripts/mcp-compliance.mjs` CLI.
+
 #### Optional CI hook
 
 Add a staging contract check to your CI pipeline so regressions surface before deploys. For GitHub Actions:
@@ -101,8 +104,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
-        with:
-          version: 10
       - uses: actions/setup-node@v4
         with:
           node-version: 22

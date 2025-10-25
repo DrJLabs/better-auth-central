@@ -6,6 +6,7 @@ This checklist documents the configuration that platform operators must provide 
 
 - Populate the following environment variables before booting the server:
   - `BETTER_AUTH_TRUSTED_ORIGINS`: optional comma-separated list of additional origins allowed to call the server (for example, staging Todo clients). The defaults already include `http://localhost:5173`, `http://localhost:3000`, `https://todo.onemainarmy.com`, and `https://auth.onemainarmy.com`.
+  - `OIDC_DYNAMIC_REGISTRATION`: defaults to `false`; only set to `true` when you intentionally enable dynamic client registration for onboarding flows.
   - `MCP_RESOURCE`: identifier returned in the protected-resource metadata (defaults to the server base URL).
   - `MCP_DEFAULT_SCOPES`: space- or comma-separated scopes applied when an MCP client omits the `scopes` field (defaults to `openid`).
   - `MCP_CLIENTS`: JSON array describing MCP clients (id, origin, resource, scopes, redirectUri). Leave as `[]` until you are ready to onboard a client.

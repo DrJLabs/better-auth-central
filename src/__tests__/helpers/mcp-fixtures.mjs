@@ -53,6 +53,23 @@ export async function buildMcpTestHarness({
   sessions = [],
   environment = {},
 } = {}) {
+  const previousEnv = new Map();
+  const mutatedKeys = new Set();
+
+  const setEnv = (key, value) => {
+    if (!previousEnv.has(key)) {
+      previousEnv.set(key, process.env[key]);
+    }
+
+    if (value === undefined) {
+      delete process.env[key];
+    } else {
+      process.env[key] = value;
+    }
+
+    mutatedKeys.add(key);
+  };
+
   const trustedOrigins = new Set(
     (process.env.BETTER_AUTH_TRUSTED_ORIGINS ?? '')
       .split(',')
@@ -61,14 +78,22 @@ export async function buildMcpTestHarness({
   );
   trustedOrigins.add(registryClient.origin);
 
-  process.env.BETTER_AUTH_DB_DRIVER = environment.BETTER_AUTH_DB_DRIVER ?? 'node';
-  process.env.BETTER_AUTH_SECRET = process.env.BETTER_AUTH_SECRET ?? 'test-secret';
-  process.env.BETTER_AUTH_URL = environment.BETTER_AUTH_URL ?? 'https://auth.example.com';
-  process.env.BETTER_AUTH_TRUSTED_ORIGINS = Array.from(trustedOrigins).join(',');
-  process.env.MCP_CLIENTS = JSON.stringify([registryClient]);
-  process.env.MCP_DEFAULT_SCOPES =
-    environment.MCP_DEFAULT_SCOPES ?? (registryClient.scopes ?? ['tasks.read']).join(' ');
-  process.env.MCP_ENFORCE_SCOPE_ALIGNMENT = environment.MCP_ENFORCE_SCOPE_ALIGNMENT ?? 'true';
+  setEnv('BETTER_AUTH_DB_DRIVER', environment.BETTER_AUTH_DB_DRIVER ?? 'node');
+  if (!process.env.BETTER_AUTH_SECRET) {
+    setEnv('BETTER_AUTH_SECRET', 'test-secret');
+  }
+  setEnv('BETTER_AUTH_URL', environment.BETTER_AUTH_URL ?? 'https://auth.example.com');
+  setEnv('BETTER_AUTH_TRUSTED_ORIGINS', Array.from(trustedOrigins).join(','));
+  setEnv('OIDC_DYNAMIC_REGISTRATION', environment.OIDC_DYNAMIC_REGISTRATION ?? 'false');
+  setEnv('MCP_CLIENTS', JSON.stringify([registryClient]));
+  setEnv(
+    'MCP_DEFAULT_SCOPES',
+    environment.MCP_DEFAULT_SCOPES ?? (registryClient.scopes ?? ['tasks.read']).join(' '),
+  );
+  setEnv(
+    'MCP_ENFORCE_SCOPE_ALIGNMENT',
+    String(environment.MCP_ENFORCE_SCOPE_ALIGNMENT ?? 'true'),
+  );
 
   const sessionStore = new Map();
   sessions.forEach(({ token, session }) => {
@@ -146,5 +171,18 @@ export async function buildMcpTestHarness({
   const { createApp } = await import('../../../dist/server.js');
   const app = createApp({ authInstance: authStub });
 
-  return { app, sessionStore, registryClient, authStub };
+  const restoreEnv = () => {
+    for (const key of mutatedKeys) {
+      const previousValue = previousEnv.get(key);
+      if (previousValue === undefined) {
+        delete process.env[key];
+      } else {
+        process.env[key] = previousValue;
+      }
+    }
+    mutatedKeys.clear();
+    previousEnv.clear();
+  };
+
+  return { app, sessionStore, registryClient, authStub, restoreEnv };
 }

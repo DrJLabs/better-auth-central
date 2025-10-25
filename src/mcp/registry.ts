@@ -38,6 +38,11 @@ class InMemoryMcpRegistry implements MCPRegistry {
     this.#scopeCatalog = new Set(config.defaultScopes);
 
     for (const client of config.clients) {
+      if (this.#clientsByOrigin.has(client.origin)) {
+        throw new Error(
+          `Duplicate MCP client origin detected: ${client.origin}. Each origin must map to a single client.`,
+        );
+      }
       this.#clientsById.set(client.id, client);
       this.#clientsByOrigin.set(client.origin, client);
       for (const scope of client.scopes) {

@@ -79,7 +79,6 @@ Introduce typed MCP registry module, derive `.well-known` documents, and keep me
 
 - `.env.example`
 - `README.md`
-- `docs/bmm-workflow-status.md`
 - `docs/integration/mcp-auth-checklist.md`
 - `docs/sprint-status.yaml`
 - `package.json`

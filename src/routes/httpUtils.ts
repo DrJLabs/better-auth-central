@@ -69,6 +69,7 @@ export const createFetchRequest = (
   };
 
   if (options?.body !== undefined) {
+    headers.delete("content-length");
     requestInit.body = options.body;
   } else if (hasBody) {
     requestInit.body = req as unknown as BodyInit;

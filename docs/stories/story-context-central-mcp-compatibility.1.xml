@@ -3,8 +3,9 @@
     <epicId>central-mcp-compatibility</epicId>
     <storyId>1</storyId>
     <title>Establish MCP registry and metadata</title>
-    <status>Todo</status>
+    <status>Done</status>
     <generatedAt>2025-10-17</generatedAt>
+    <completedAt>2025-10-25</completedAt>
     <generator>BMAD Story Context Workflow</generator>
     <sourceStoryPath>docs/stories/story-central-mcp-compatibility-1.md</sourceStoryPath>
   </metadata>

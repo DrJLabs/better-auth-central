@@ -11,11 +11,22 @@ const scriptPath = path.resolve(
 
 const activeServers = new Set();
 
-afterEach(() => {
-  for (const server of activeServers) {
-    server.close();
-    activeServers.delete(server);
-  }
+afterEach(async () => {
+  const closures = Array.from(activeServers).map(
+    (server) =>
+      new Promise((resolve, reject) => {
+        server.close((error) => {
+          if (error) {
+            reject(error);
+            return;
+          }
+          resolve();
+        });
+      }),
+  );
+
+  await Promise.all(closures);
+  activeServers.clear();
 });
 
 const startComplianceServer = (handlers) =>

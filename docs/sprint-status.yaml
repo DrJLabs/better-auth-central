@@ -38,6 +38,6 @@ story_location: "{project-root}/docs/stories"
 development_status:
   epic-1: done
   1-1-establish-mcp-registry-and-metadata: done
- 1-2-align-oauth-mcp-session-endpoints: done
- 1-3-automate-mcp-compliance-verification: done
+  1-2-align-oauth-mcp-session-endpoints: done
+  1-3-automate-mcp-compliance-verification: done
   epic-1-retrospective: completed
