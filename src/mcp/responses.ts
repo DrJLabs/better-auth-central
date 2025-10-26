@@ -173,7 +173,7 @@ export const buildHandshakeResponse = ({ client, metadata, baseUrl }: HandshakeC
     jwks_uri: metadata.jwks_uri,
   });
 
-  const resolvedMetadata = McpHandshakeMetadataSchema.parse({
+  const resolvedMetadataBase: Record<string, string> = {
     authorization_endpoint: ensureUrl(
       partialMetadata.authorization_endpoint,
       new URL("/api/auth/oauth2/authorize", base).toString(),
@@ -186,10 +186,6 @@ export const buildHandshakeResponse = ({ client, metadata, baseUrl }: HandshakeC
       partialMetadata.introspection_endpoint,
       new URL("/api/auth/oauth2/introspect", base).toString(),
     ),
-    revocation_endpoint: ensureUrl(
-      partialMetadata.revocation_endpoint,
-      new URL("/api/auth/oauth2/revoke", base).toString(),
-    ),
     consent_endpoint: ensureUrl(
       partialMetadata.consent_endpoint,
       new URL("/consent", base).toString(),
@@ -199,7 +195,16 @@ export const buildHandshakeResponse = ({ client, metadata, baseUrl }: HandshakeC
       new URL("/.well-known/openid-configuration", base).toString(),
     ),
     jwks_uri: ensureUrl(partialMetadata.jwks_uri, new URL("/.well-known/jwks.json", base).toString()),
-  });
+  };
+
+  if (typeof partialMetadata.revocation_endpoint === "string" && partialMetadata.revocation_endpoint.length > 0) {
+    resolvedMetadataBase.revocation_endpoint = ensureUrl(
+      partialMetadata.revocation_endpoint,
+      new URL("/api/auth/oauth2/revoke", base).toString(),
+    );
+  }
+
+  const resolvedMetadata = McpHandshakeMetadataSchema.parse(resolvedMetadataBase);
 
   const sessionEndpoint = ensureUrl(
     (metadata as { mcp_session_endpoint?: unknown }).mcp_session_endpoint,
@@ -219,7 +224,7 @@ export const buildHandshakeResponse = ({ client, metadata, baseUrl }: HandshakeC
       authorization: resolvedMetadata.authorization_endpoint,
       token: resolvedMetadata.token_endpoint,
       introspection: resolvedMetadata.introspection_endpoint,
-      revocation: resolvedMetadata.revocation_endpoint,
+      ...(resolvedMetadata.revocation_endpoint ? { revocation: resolvedMetadata.revocation_endpoint } : {}),
       consent: resolvedMetadata.consent_endpoint,
       discovery: resolvedMetadata.discovery_endpoint,
       session: sessionEndpoint,

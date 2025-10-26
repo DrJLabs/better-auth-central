@@ -41,7 +41,6 @@ export const enrichOpenIdConfiguration = <T extends Record<string, unknown>>(
 ): T & {
   token_endpoint: string;
   introspection_endpoint: string;
-  revocation_endpoint: string;
   mcp_session_endpoint: string;
   mcp_handshake_endpoint: string;
   mcp_scopes_supported: string[];
@@ -59,7 +58,6 @@ export const enrichOpenIdConfiguration = <T extends Record<string, unknown>>(
 
   const tokenEndpoint = new URL("/api/auth/oauth2/token", baseURL).toString();
   const introspectionEndpoint = new URL("/api/auth/oauth2/introspect", baseURL).toString();
-  const revocationEndpoint = new URL("/api/auth/oauth2/revoke", baseURL).toString();
   const sessionEndpoint = new URL("/api/auth/mcp/session", baseURL).toString();
   const handshakeEndpoint = new URL("/api/auth/mcp/handshake", baseURL).toString();
   const serversDocument = new URL("/.well-known/mcp-servers.json", baseURL).toString();
@@ -71,11 +69,25 @@ export const enrichOpenIdConfiguration = <T extends Record<string, unknown>>(
     introspectionEndpoint,
     "/api/auth/mcp/introspect",
   );
-  enriched.revocation_endpoint = sanitizeEndpoint(
-    enriched.revocation_endpoint,
-    revocationEndpoint,
-    "/api/auth/mcp/revoke",
-  );
+
+  const normalizeOptionalEndpoint = (value: unknown): string | undefined => {
+    if (typeof value !== "string" || value.length === 0) {
+      return undefined;
+    }
+
+    try {
+      return new URL(value, baseURL).toString();
+    } catch {
+      return undefined;
+    }
+  };
+
+  const resolvedRevocation = normalizeOptionalEndpoint(enriched.revocation_endpoint);
+  if (resolvedRevocation) {
+    enriched.revocation_endpoint = resolvedRevocation;
+  } else {
+    delete enriched.revocation_endpoint;
+  }
   enriched.mcp_session_endpoint = sessionEndpoint;
   enriched.mcp_handshake_endpoint = handshakeEndpoint;
   enriched.mcp_scopes_supported = registry.getScopeCatalog();
@@ -84,7 +96,6 @@ export const enrichOpenIdConfiguration = <T extends Record<string, unknown>>(
   return enriched as T & {
     token_endpoint: string;
     introspection_endpoint: string;
-    revocation_endpoint: string;
     mcp_session_endpoint: string;
     mcp_handshake_endpoint: string;
     mcp_scopes_supported: string[];

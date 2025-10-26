@@ -30,7 +30,7 @@ const OpenIdSchema = Type.Intersect([
     authorization_endpoint: Type.String(),
     token_endpoint: Type.String(),
     introspection_endpoint: Type.String(),
-    revocation_endpoint: Type.String(),
+    revocation_endpoint: Type.Optional(Type.String()),
     consent_endpoint: Type.String(),
     discovery_endpoint: Type.String(),
   }),
@@ -180,22 +180,19 @@ describe("server", () => {
         "/api/auth/oauth2/introspect",
         metadataBase,
       ).toString();
-      const expectedRevocationEndpoint = new URL(
-        "/api/auth/oauth2/revoke",
-        metadataBase,
-      ).toString();
       const expectedServersMetadata = new URL(
         "/.well-known/mcp-servers.json",
         metadataBase,
       ).toString();
-      assert.deepEqual(response.body, {
+      assert.equal(response.body.revocation_endpoint, undefined);
+      const { revocation_endpoint: _ignoredRevocation, ...rest } = response.body;
+      assert.deepEqual(rest, {
         issuer: "http://localhost:3000",
         jwks_uri: "http://localhost:3000/.well-known/jwks.json",
         registration_endpoint: "http://localhost:3000/api/auth/oauth2/register",
         authorization_endpoint: "http://localhost:3000/api/auth/oauth2/authorize",
         token_endpoint: "http://localhost:3000/api/auth/oauth2/token",
         introspection_endpoint: expectedIntrospectionEndpoint,
-        revocation_endpoint: expectedRevocationEndpoint,
         consent_endpoint: "http://localhost:3000/consent",
         discovery_endpoint: "http://localhost:3000/.well-known/openid-configuration",
         mcp_session_endpoint: expectedSessionEndpoint,

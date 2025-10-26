@@ -96,7 +96,7 @@ const HandshakeResponseSchema = z.object({
     authorization_endpoint: nonEmptyString,
     token_endpoint: nonEmptyString,
     introspection_endpoint: nonEmptyString,
-    revocation_endpoint: nonEmptyString,
+    revocation_endpoint: nonEmptyString.optional(),
     consent_endpoint: nonEmptyString,
     discovery_endpoint: nonEmptyString,
     jwks_uri: nonEmptyString,
@@ -105,7 +105,7 @@ const HandshakeResponseSchema = z.object({
     authorization: nonEmptyString,
     token: nonEmptyString,
     introspection: nonEmptyString,
-    revocation: nonEmptyString,
+    revocation: nonEmptyString.optional(),
     consent: nonEmptyString,
     discovery: nonEmptyString,
     session: nonEmptyString,
@@ -319,9 +319,9 @@ const validateServer = async (server, openIdDocument) => {
   if (sessionResponse.status === 401) {
     // Some deployments may not expose session data for client_credentials tokens.
     SessionErrorSchema.parse(sessionData);
-        console.log(
-          `  • Session endpoint rejected token (401) despite challenge "${sessionChallenge}" — verify tokens map to active sessions`,
-        );
+    console.log(
+      `  • Session endpoint rejected token (401) despite challenge "${sessionChallenge}" — verify tokens map to active sessions`,
+    );
   } else {
     const session = SessionResponseSchema.parse(sessionData);
 
@@ -355,7 +355,7 @@ const main = async () => {
 
   const openIdUrl = new URL("/.well-known/oauth-authorization-server", baseUrl).toString();
   const { data: openIdPayload } = await requestJson(openIdUrl, {}, { description: "OpenID configuration" });
-  const sanitizedOpenIdPayload = {
+  const openIdDocument = OpenIdDocumentSchema.parse({
     ...openIdPayload,
     token_endpoint:
       openIdPayload.token_endpoint ??
@@ -363,11 +363,7 @@ const main = async () => {
     introspection_endpoint:
       openIdPayload.introspection_endpoint ??
       new URL("/api/auth/oauth2/introspect", baseUrl).toString(),
-    revocation_endpoint:
-      openIdPayload.revocation_endpoint ??
-      new URL("/api/auth/oauth2/revoke", baseUrl).toString(),
-  };
-  const openIdDocument = OpenIdDocumentSchema.parse(sanitizedOpenIdPayload);
+  });
 
   console.log("• OpenID metadata advertises MCP extensions");
 
