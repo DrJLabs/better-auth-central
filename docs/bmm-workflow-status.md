@@ -12,8 +12,8 @@ communication_language: English
 # Workflow Status
 
 **Current Phase:** 4-Implementation
-**Current Workflow:** story-done (Story 1.4)
-**Overall Progress:** 80%
+**Current Workflow:** story-done (Story 1.5)
+**Overall Progress:** 100%
 
 ## Planned Workflow Journey
 
@@ -32,9 +32,9 @@ communication_language: English
 
 ## Current Status
 
-**Current Step:** Story 1.4 accepted and closed. Story 1.5 remains queued for development.
-**Next Step:** Kick off Story 1.5 implementation via `dev-story`, coordinating onboarding runbook work.
-**Next Command:** bmad dev develop
+**Current Step:** Story 1.5 runbook merged and marked Done; implementation phase for Epic 1 stories is complete.
+**Next Step:** Evaluate backlog for future work or transition to retrospective/close-out activities.
+**Next Command:** (Optional) `bmad retrospective` to confirm epic completion.
 
 ## Decisions Log
 
@@ -44,16 +44,15 @@ communication_language: English
 - **2025-10-24**: Test design for Epic 1 Story 2 completed; MCP contract coverage and risk plan documented.
 - **2025-10-25**: Follow-up MCP CI and onboarding runbook stories drafted for new backlog items.
 - **2025-10-25**: Story contexts generated for Stories 1.4 and 1.5 to unlock readiness review.
+- **2025-10-26**: Story 1.5 implemented, reviewed, and merged; onboarding runbook published with solo-operator guidance.
 
 ### Implementation Progress (Phase 4 Only)
-#### Ready for Dev
-- story-1.5.md – Publish MCP onboarding runbook (Status: Ready, Points: 2)
-
 #### Done
 - story-1.4.md – Enforce MCP compliance checks in CI (Status: Done, Points: 3)
 - story-central-mcp-compatibility-1.md (Status: Done, Points: 5)
 - story-central-mcp-compatibility-2.md (Status: Done, Points: 5)
 - story-central-mcp-compatibility-3.md (Status: Done, Points: 3)
+- story-1.5.md – Publish MCP onboarding runbook (Status: Done, Points: 2)
 
 ### Artifacts Generated
 
@@ -70,8 +69,8 @@ communication_language: English
 
 ### Next Action Required
 
-**What to do next:** Switch to DEV agent and start `dev-story` for Story 1.5 to deliver the MCP onboarding runbook.
+**What to do next:** Optionally run a retrospective or backlog grooming to determine future work.
 
-**Command to run:** bmad dev develop
+**Command to run:** bmad retrospective (optional)
 
-**Agent to load:** DEV agent (`bmad/bmm/agents/dev.md`)
+**Agent to load:** SM/PM agent (as needed for planning)

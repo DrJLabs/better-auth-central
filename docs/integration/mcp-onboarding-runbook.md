@@ -93,15 +93,15 @@ When the CLI exits with `❌ MCP compliance failed`, inspect the error message a
 - `token_endpoint returned 400`: usually indicates the compliance client secret or scopes are misconfigured. Regenerate credentials or update `MCP_COMPLIANCE_*` environment variables.
 - `did not return JSON payload`: one of the discovery endpoints is serving HTML or an error page. Check ingress routing and TLS configuration.
 
-Capture failures in the incident tracker before retrying onboarding.
+Capture failures in your change log before retrying onboarding.
 
 ## Rollback Procedures
 
 Trigger the rollback flow if onboarding fails after registry changes, if compliance asserts new regressions, or if stakeholders request a revert during change control. Capture the current state before executing the steps below.
 
 1. **Freeze onboarding activity**
-   - Announce the rollback in the Ops channel and pause any client credential distribution.
-   - Export the current `MCP_CLIENTS` JSON and compliance CLI logs for audit.
+   - Pause any client credential distribution and note the rollback decision in your personal log.
+   - Export the current `MCP_CLIENTS` JSON and compliance CLI logs for reference.
 2. **Revert registry and environment variables**
    - Remove the newly added client entry from `MCP_CLIENTS` and restore prior values from version control or the secrets manager snapshot.
    - Reset `BETTER_AUTH_TRUSTED_ORIGINS` and any tenant-specific secrets introduced during onboarding.
