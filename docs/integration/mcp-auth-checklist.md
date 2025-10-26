@@ -12,6 +12,10 @@ This checklist documents the configuration that platform operators must provide 
   - `MCP_CLIENTS`: JSON array describing MCP clients (id, origin, resource, scopes, redirectUri). Leave as `[]` until you are ready to onboard a client.
   - `MCP_ENFORCE_SCOPE_ALIGNMENT`: set to `true` (default) to block clients that request scopes outside of the configured catalogue.
   - `MCP_COMPLIANCE_CLIENT_SECRET`: optional shared secret used by the compliance harness when invoking token/introspection endpoints.
+  - `MCP_COMPLIANCE_BASE_URL_STAGING`: base URL for the staging deployment targeted by the compliance gate.
+  - `MCP_COMPLIANCE_BASE_URL_MAIN`: base URL for the primary (main) deployment targeted by the compliance gate.
+  - `MCP_COMPLIANCE_CLIENT_ID`: registered MCP client identifier used by the compliance harness.
+  - `MCP_COMPLIANCE_SCOPE`: space-separated scopes expected by the compliance client (must align with the registry entry).
 
 ## Registry expectations
 

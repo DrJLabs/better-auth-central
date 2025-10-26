@@ -131,3 +131,4 @@ All work remains within the existing Node + Express service; no extra services o
 ## Post-Review Follow-ups
 
 - **2025-10-28 · Story 1.2 (High, Auth Platform · Resolved):** OAuth token proxy now reserializes the sanitized scope list before invoking Better Auth so unauthorized scopes can never be minted (`src/routes/oauthRouter.ts`).
+- **2025-10-26 · Story 1.4 (Medium, Platform DevOps · Resolved):** Restored compliance CLI session challenge assertion and added regression tests to cover missing `grant_types_supported` metadata (`scripts/mcp-compliance.mjs`, `scripts/__tests__/mcp-compliance*.mjs`).

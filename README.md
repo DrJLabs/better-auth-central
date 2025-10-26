@@ -86,37 +86,33 @@ pnpm mcp:register -- --base-url=https://auth.onemainarmy.com
 
 Both commands are exposed via the `mcp:*` scripts in `package.json` and backed by the `scripts/mcp-compliance.mjs` CLI.
 
-#### Optional CI hook
+#### CI automation
 
-Add a staging contract check to your CI pipeline so regressions surface before deploys. For GitHub Actions:
+The repository ships with `.github/workflows/discovery-smoke.yml`, which now runs two jobs on every pull request and push to `main`:
 
-```yaml
-name: mcp-compliance
+1. `smoke-test` provisions Node, installs dependencies, builds the service, and exercises the discovery smoke checks.
+2. `mcp-compliance` reuses the build cache, validates required secrets, and runs `pnpm mcp:compliance` against both staging and production (`main`) base URLs. The job exits non-zero if the CLI surfaces contract regressions, blocking the workflow.
 
-on:
-  workflow_dispatch:
-  push:
-    branches: [main]
+Configure these GitHub Actions secrets before enabling the job:
 
-jobs:
-  compliance:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - name: Run MCP compliance suite
-        env:
-          BETTER_AUTH_URL: https://staging-auth.example.com
-          MCP_COMPLIANCE_CLIENT_SECRET: ${{ secrets.MCP_COMPLIANCE_CLIENT_SECRET }}
-        run: pnpm mcp:compliance -- --base-url="$BETTER_AUTH_URL"
-```
+- `MCP_COMPLIANCE_BASE_URL_STAGING`: base URL for the staging deployment targeted by the compliance gate.
+- `MCP_COMPLIANCE_BASE_URL_MAIN`: base URL for the primary (main) deployment targeted by the compliance gate.
+- `MCP_COMPLIANCE_CLIENT_ID`: registered MCP client identifier used by the compliance harness.
+- `MCP_COMPLIANCE_SCOPE`: space-separated scopes expected by the compliance client (must align with the registry entry).
 
-This hook mirrors AC4: it exercises the staging deployment and fails fast when discovery, handshake, token, introspection, or session contracts drift.
+Reuse the compliance client secret described in the prerequisites section by storing it as a GitHub secret.
+
+**Rerun guidance**
+
+1. Open the PR’s **Checks** tab (or the workflow run) and select the `discovery-smoke` workflow.
+2. Choose **Re-run jobs → Re-run failed jobs** to retry only the failing stage, or **Re-run all jobs** to rebuild from scratch.
+3. For CLI-driven retries, run `gh workflow run discovery-smoke.yml -f ref=<branch>` to queue a fresh execution.
+
+**Failure triage**
+
+- Inspect the `Run compliance against staging/main` steps for the exact endpoint or scope mismatch highlighted by the CLI.
+- Reproduce locally with `pnpm mcp:compliance -- --base-url=<environment>` to get verbose stack traces.
+- Confirm the GitHub secrets listed above point at live environments and that the MCP client registry matches the deployment.
 
 ## Production build
 

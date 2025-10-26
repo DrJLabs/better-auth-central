@@ -20,14 +20,38 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Enable pnpm via corepack
+        run: corepack enable pnpm
+
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '22'
           check-latest: true
 
-      - name: Set up pnpm
-        uses: pnpm/action-setup@v4
+      - name: Determine pnpm store
+        id: pnpm-store
+        run: |
+          STORE_PATH=$(pnpm store path --silent)
+          echo "store=$STORE_PATH" >> "$GITHUB_OUTPUT"
+          echo "PNPM_STORE_PATH=$STORE_PATH" >> "$GITHUB_ENV"
+          mkdir -p "$STORE_PATH"
+
+      - name: Restore pnpm store cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.pnpm-store.outputs.store }}
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-
+
+      - name: Restore build artifacts
+        id: restore-dist
+        uses: actions/cache@v4
+        with:
+          path: |
+            dist
+          key: ${{ runner.os }}-build-${{ github.sha }}
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -39,6 +63,7 @@ jobs:
         run: pnpm auth:migrate -- --yes
 
       - name: Build
+        if: steps.restore-dist.outputs.cache-hit != 'true'
         run: pnpm build
 
       - name: Run discovery smoke check
@@ -74,3 +99,75 @@ jobs:
           kill "$SERVER_PID"
           wait "$SERVER_PID" 2>/dev/null || true
           trap - EXIT
+
+  mcp-compliance:
+    name: MCP Compliance
+    needs: smoke-test
+    runs-on: ubuntu-latest
+    env:
+      MCP_COMPLIANCE_BASE_URL_STAGING: ${{ secrets.MCP_COMPLIANCE_BASE_URL_STAGING }}
+      MCP_COMPLIANCE_BASE_URL_MAIN: ${{ secrets.MCP_COMPLIANCE_BASE_URL_MAIN }}
+      MCP_COMPLIANCE_CLIENT_ID: ${{ secrets.MCP_COMPLIANCE_CLIENT_ID }}
+      MCP_COMPLIANCE_CLIENT_SECRET: ${{ secrets.MCP_COMPLIANCE_CLIENT_SECRET }}
+      MCP_COMPLIANCE_SCOPE: ${{ secrets.MCP_COMPLIANCE_SCOPE }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Enable pnpm via corepack
+        run: corepack enable pnpm
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          check-latest: true
+
+      - name: Determine pnpm store
+        id: pnpm-store
+        run: |
+          STORE_PATH=$(pnpm store path --silent)
+          echo "store=$STORE_PATH" >> "$GITHUB_OUTPUT"
+          echo "PNPM_STORE_PATH=$STORE_PATH" >> "$GITHUB_ENV"
+          mkdir -p "$STORE_PATH"
+
+      - name: Restore pnpm store cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.pnpm-store.outputs.store }}
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-
+
+      - name: Restore build artifacts
+        id: compliance-dist
+        uses: actions/cache@v4
+        with:
+          path: |
+            dist
+          key: ${{ runner.os }}-build-${{ github.sha }}
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        if: steps.compliance-dist.outputs.cache-hit != 'true'
+        run: pnpm build
+
+      - name: Validate compliance configuration
+        run: |
+          set -euo pipefail
+          if [ -z "${MCP_COMPLIANCE_BASE_URL_STAGING:-}" ]; then
+            echo "Missing MCP_COMPLIANCE_BASE_URL_STAGING secret" >&2
+            exit 1
+          fi
+          if [ -z "${MCP_COMPLIANCE_BASE_URL_MAIN:-}" ]; then
+            echo "Missing MCP_COMPLIANCE_BASE_URL_MAIN secret" >&2
+            exit 1
+          fi
+
+      - name: Run compliance against staging
+        run: pnpm mcp:compliance -- --base-url="$MCP_COMPLIANCE_BASE_URL_STAGING"
+
+      - name: Run compliance against main
+        run: pnpm mcp:compliance -- --base-url="$MCP_COMPLIANCE_BASE_URL_MAIN"

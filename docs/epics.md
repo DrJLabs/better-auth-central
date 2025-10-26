@@ -60,3 +60,29 @@
   - Extend `.env.example` with MCP variables.
   - Consider adding Playwright smoke for consent UI as stretch goal.
 - **Story Points:** 3
+
+### Story 4: Enforce MCP compliance checks in CI
+- **Summary:** Integrate the MCP compliance CLI into staging and main CI workflows so regressions block merges and deployments.
+- **Acceptance Criteria:**
+  1. GitHub Actions workflow executes `pnpm mcp:compliance` against staging and main base URLs on every PR and main branch push.
+  2. Compliance job fails the pipeline when MCP contract checks fail.
+  3. Pipeline documentation references the new MCP compliance check with rerun guidance.
+  4. Compliance job secrets and environment variables are sourced securely without leaking credentials.
+- **Implementation Notes:**
+  - Update existing CI workflows or add a dedicated `mcp-compliance` job invoking the CLI with appropriate base URLs.
+  - Use reusable scripts or env configuration to share setup with discovery smoke tests.
+  - Document the workflow addition in the README or CI guide.
+- **Story Points:** 3
+
+### Story 5: Publish MCP onboarding runbook
+- **Summary:** Produce an operator-facing runbook that documents MCP environment variables, compliance steps, rollback guidance, and escalation paths.
+- **Acceptance Criteria:**
+  1. Runbook covers environment setup, registry updates, compliance CLI usage, and validation steps for new MCP clients.
+  2. Includes rollback procedures and contact points for escalation.
+  3. README or integration docs link to the runbook for quick discovery.
+  4. Any referenced scripts or checklists exist and are up to date.
+- **Implementation Notes:**
+  - Author the runbook under `docs/integration/` or similar operations folder.
+  - Align with existing integration checklist to avoid duplication.
+  - Capture operator feedback loops and logging requirements where applicable.
+- **Story Points:** 2

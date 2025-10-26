@@ -39,20 +39,66 @@ export const enrichOpenIdConfiguration = <T extends Record<string, unknown>>(
   registry: MCPRegistry,
   configuration: T,
 ): T & {
+  token_endpoint: string;
+  introspection_endpoint: string;
   mcp_session_endpoint: string;
   mcp_handshake_endpoint: string;
   mcp_scopes_supported: string[];
   mcp_servers_metadata: string;
 } => {
+  const sanitizeEndpoint = (value: unknown, fallback: string, legacyPath?: string): string => {
+    if (typeof value === "string" && value.length > 0) {
+      if (legacyPath && value.includes(legacyPath)) {
+        return fallback;
+      }
+      return value;
+    }
+    return fallback;
+  };
+
+  const tokenEndpoint = new URL("/api/auth/oauth2/token", baseURL).toString();
+  const introspectionEndpoint = new URL("/api/auth/oauth2/introspect", baseURL).toString();
   const sessionEndpoint = new URL("/api/auth/mcp/session", baseURL).toString();
   const handshakeEndpoint = new URL("/api/auth/mcp/handshake", baseURL).toString();
   const serversDocument = new URL("/.well-known/mcp-servers.json", baseURL).toString();
 
-  return {
-    ...configuration,
-    mcp_session_endpoint: sessionEndpoint,
-    mcp_handshake_endpoint: handshakeEndpoint,
-    mcp_scopes_supported: registry.getScopeCatalog(),
-    mcp_servers_metadata: serversDocument,
+  const enriched = { ...(configuration as Record<string, unknown>) };
+  enriched.token_endpoint = sanitizeEndpoint(enriched.token_endpoint, tokenEndpoint, "/api/auth/mcp/token");
+  enriched.introspection_endpoint = sanitizeEndpoint(
+    enriched.introspection_endpoint,
+    introspectionEndpoint,
+    "/api/auth/mcp/introspect",
+  );
+
+  const normalizeOptionalEndpoint = (value: unknown): string | undefined => {
+    if (typeof value !== "string" || value.length === 0) {
+      return undefined;
+    }
+
+    try {
+      return new URL(value, baseURL).toString();
+    } catch {
+      return undefined;
+    }
+  };
+
+  const resolvedRevocation = normalizeOptionalEndpoint(enriched.revocation_endpoint);
+  if (resolvedRevocation) {
+    enriched.revocation_endpoint = resolvedRevocation;
+  } else {
+    delete enriched.revocation_endpoint;
+  }
+  enriched.mcp_session_endpoint = sessionEndpoint;
+  enriched.mcp_handshake_endpoint = handshakeEndpoint;
+  enriched.mcp_scopes_supported = registry.getScopeCatalog();
+  enriched.mcp_servers_metadata = serversDocument;
+
+  return enriched as T & {
+    token_endpoint: string;
+    introspection_endpoint: string;
+    mcp_session_endpoint: string;
+    mcp_handshake_endpoint: string;
+    mcp_scopes_supported: string[];
+    mcp_servers_metadata: string;
   };
 };

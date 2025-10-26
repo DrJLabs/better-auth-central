@@ -1,0 +1,154 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>1</epicId>
+    <storyId>4</storyId>
+    <title>Enforce MCP compliance checks in CI</title>
+    <status>Draft</status>
+    <generatedAt>2025-10-25T07:01:35Z</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/story-1.4.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>As a Platform DevOps engineer</asA>
+    <iWant>I want GitHub Actions to run the MCP compliance CLI against staging and main environments</iWant>
+    <soThat>So MCP regressions block merges and deployments</soThat>
+    <tasks>
+- [ ] Extend `.github/workflows` to add an `mcp-compliance` job (or workflow) that runs `pnpm mcp:compliance -- --base-url=$STAGING_URL` and `--base-url=$MAIN_URL` after build steps. (AC: 1,2)
+  - [ ] Share dependency install/build cache with discovery smoke job to keep runtimes acceptable. (AC: 1)
+- [ ] Configure workflow secrets/environment variables for staging and main base URLs plus any client secrets required by the CLI. (AC: 1,4)
+- [ ] Update pipeline documentation (README CI section or new doc) with compliance check overview, rerun guidance, and failure triage steps. (AC: 3)
+- [ ] Validate locally by running `pnpm build`, `pnpm test`, and `pnpm mcp:compliance -- --base-url=<staging>` to confirm exit codes mirror CI expectations. (AC: 2)
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+- [ ] GitHub Actions executes `pnpm mcp:compliance` against staging and main base URLs for every pull request and `main` push, reusing existing Node/pnpm setup steps. [Source: docs/epics.md]
+- [ ] The compliance job fails the workflow when the CLI detects MCP contract violations, preventing deployments with regressions. [Source: docs/epics.md]
+- [ ] Pipeline documentation references the compliance check and explains how to rerun or debug failures. [Source: docs/epics.md]
+- [ ] Compliance job credentials and environment variables are sourced from GitHub secrets or reusable configuration without exposing sensitive data. [Source: docs/epics.md]
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/epics.md</path>
+        <title>better-auth-central - Epic Breakdown</title>
+        <section>Story 4: Enforce MCP compliance checks in CI</section>
+        <snippet>The epic entry directs this story to wire `pnpm mcp:compliance` into GitHub Actions on every PR and main push, fail builds on contract drift, document rerun guidance, and guard secrets usage. These lines define the exact acceptance criteria and implementation expectations for the CI automation.</snippet>
+      </doc>
+      <doc>
+        <path>README.md</path>
+        <title>better-auth-server README</title>
+        <section>Optional CI hook</section>
+        <snippet>The README provides a reference GitHub Actions job that installs pnpm, sets environment variables, and runs `pnpm mcp:compliance` against a staging URL. It highlights how the workflow should export secrets like `MCP_COMPLIANCE_CLIENT_SECRET` and explains failure behaviour.</snippet>
+      </doc>
+      <doc>
+        <path>.github/workflows/discovery-smoke.yml</path>
+        <title>GitHub Actions - discovery-smoke</title>
+        <section>jobs.smoke-test</section>
+        <snippet>The current workflow shows how the project provisions pnpm, builds the server, waits for health checks, and runs smoke tests. Reusing its checkout, dependency install, and bootstrap steps will keep the new compliance job consistent and efficient.</snippet>
+      </doc>
+      <doc>
+        <path>docs/test-design-epic-1.md</path>
+        <title>Test Design: Epic 1</title>
+        <section>Risk R-005 (OPS)</section>
+        <snippet>Risk R-005 flags the danger of `pnpm mcp:compliance` falling out of sync with schema changes and prescribes running the CLI in CI burn-in loops with assertions on new fields. The mitigation aligns directly with this story’s requirement to block regressions through automated checks.</snippet>
+      </doc>
+      <doc>
+        <path>docs/integration/mcp-auth-checklist.md</path>
+        <title>MCP Authentication Integration Checklist</title>
+        <section>Prerequisites & Verification workflow</section>
+        <snippet>The checklist enumerates required MCP environment variables and instructs operators to run `pnpm mcp:compliance -- --base-url=...` as part of onboarding. These details inform which secrets and environment settings the CI job must supply.</snippet>
+      </doc>
+    </docs>
+    <code>
+      <artifact>
+        <path>.github/workflows/discovery-smoke.yml</path>
+        <kind>workflow</kind>
+        <symbol>jobs.smoke-test</symbol>
+        <lines>1-90</lines>
+        <reason>Provides the template for installing dependencies, building the service, and running scripts inside GitHub Actions; the compliance job should reuse this structure.</reason>
+      </artifact>
+      <artifact>
+        <path>scripts/mcp-compliance.mjs</path>
+        <kind>cli-script</kind>
+        <symbol>main</symbol>
+        <lines>1-200</lines>
+        <reason>Implements the compliance CLI the workflow will execute, including handshake/token/introspection validation and error surfacing.</reason>
+      </artifact>
+      <artifact>
+        <path>scripts/__tests__/mcp-compliance.atdd.test.mjs</path>
+        <kind>atdd</kind>
+        <symbol>describe("[ATDD] MCP compliance CLI (RED phase)")</symbol>
+        <lines>1-220</lines>
+        <reason>Defines acceptance tests ensuring the CLI covers every registered client and validates all MCP endpoints—evidence the CI job must keep passing.</reason>
+      </artifact>
+      <artifact>
+        <path>package.json</path>
+        <kind>config</kind>
+        <symbol>scripts.mcp:compliance</symbol>
+        <lines>1-120</lines>
+        <reason>Exposes the `pnpm mcp:compliance` command invoked by CI and documents related helper scripts.</reason>
+      </artifact>
+    </code>
+    <dependencies>
+      <ecosystem name="node">
+        <package name="node-fetch" version="^3.3.2" />
+        <package name="zod" version="^3.23.8" />
+        <package name="better-auth" version="^1.3.27" />
+        <package name="supertest" version="^7.1.4" dev="true" />
+      </ecosystem>
+    </dependencies>
+  </artifacts>
+
+  <constraints>Reuse the existing pnpm/node setup from discovery smoke tests, keep the compliance job isolated with secrets sourced from GitHub Actions, and ensure both staging and main URLs are exercised serially so failures abort the workflow. Avoid duplicating environment setup logic—prefer composite actions or shared steps—and capture documentation updates referencing the new gate.</constraints>
+  <interfaces>
+    <interface>
+      <name>pnpm mcp:compliance</name>
+      <kind>CLI command</kind>
+      <signature>pnpm mcp:compliance -- --base-url=&lt;environment-url&gt;</signature>
+      <path>package.json</path>
+    </interface>
+    <interface>
+      <name>/.well-known/mcp-servers.json</name>
+      <kind>REST endpoint</kind>
+      <signature>GET /.well-known/mcp-servers.json</signature>
+      <path>scripts/mcp-compliance.mjs</path>
+    </interface>
+    <interface>
+      <name>/api/auth/mcp/handshake</name>
+      <kind>REST endpoint</kind>
+      <signature>GET /api/auth/mcp/handshake?client_id=&lt;id&gt;</signature>
+      <path>scripts/mcp-compliance.mjs</path>
+    </interface>
+    <interface>
+      <name>/api/auth/oauth2/token</name>
+      <kind>REST endpoint</kind>
+      <signature>POST /api/auth/oauth2/token</signature>
+      <path>scripts/mcp-compliance.mjs</path>
+    </interface>
+    <interface>
+      <name>/api/auth/oauth2/introspect</name>
+      <kind>REST endpoint</kind>
+      <signature>POST /api/auth/oauth2/introspect</signature>
+      <path>scripts/mcp-compliance.mjs</path>
+    </interface>
+    <interface>
+      <name>/api/auth/mcp/session</name>
+      <kind>REST endpoint</kind>
+      <signature>GET /api/auth/mcp/session</signature>
+      <path>scripts/mcp-compliance.mjs</path>
+    </interface>
+  </interfaces>
+  <tests>
+    <standards>Follow Epic 1 test design: run `pnpm test` for Node test suites, keep ATDD coverage for the compliance CLI, and ensure CI jobs fail fast on schema drift (Risk R-005). Document rerun procedures in README and verify they match pipeline automation.</standards>
+    <locations>scripts/__tests__/mcp-compliance.test.mjs; scripts/__tests__/mcp-compliance.atdd.test.mjs; tests/api/mcp-contract.test.mjs</locations>
+    <ideas>
+      AC1: Reuse discovery smoke setup to bootstrap Node/pnpm, then call `pnpm mcp:compliance` against staging and main URLs; assert both invocations succeed before completing the job.
+      AC2: Introduce a negative test run (e.g., temporary bad scope) in a draft PR to confirm the job fails with actionable output and blocks merge.
+      AC3: Capture job logs and update README/CI docs with rerun steps and troubleshooting guidance; verify documentation links from job summary.
+      AC4: Store base URLs and secrets in GitHub Actions secrets or environment configuration and confirm they are referenced via `${{ secrets.* }}` rather than plaintext values.
+    </ideas>
+  </tests>
+</story-context>

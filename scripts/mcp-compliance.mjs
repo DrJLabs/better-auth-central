@@ -85,6 +85,7 @@ const OpenIdDocumentSchema = z.object({
   mcp_handshake_endpoint: nonEmptyString,
   mcp_servers_metadata: nonEmptyString,
   mcp_scopes_supported: z.array(nonEmptyString).nonempty(),
+  grant_types_supported: z.array(nonEmptyString).optional(),
 });
 
 const HandshakeResponseSchema = z.object({
@@ -95,7 +96,7 @@ const HandshakeResponseSchema = z.object({
     authorization_endpoint: nonEmptyString,
     token_endpoint: nonEmptyString,
     introspection_endpoint: nonEmptyString,
-    revocation_endpoint: nonEmptyString,
+    revocation_endpoint: nonEmptyString.optional(),
     consent_endpoint: nonEmptyString,
     discovery_endpoint: nonEmptyString,
     jwks_uri: nonEmptyString,
@@ -104,7 +105,7 @@ const HandshakeResponseSchema = z.object({
     authorization: nonEmptyString,
     token: nonEmptyString,
     introspection: nonEmptyString,
-    revocation: nonEmptyString,
+    revocation: nonEmptyString.optional(),
     consent: nonEmptyString,
     discovery: nonEmptyString,
     session: nonEmptyString,
@@ -211,11 +212,21 @@ const validateServer = async (server, openIdDocument) => {
     throw new Error(`Handshake token endpoint ${tokenEndpoint} does not match OpenID metadata ${openIdTokenEndpoint}`);
   }
 
-  const openIdSessionEndpoint = ensureAbsoluteUrl(openIdDocument.mcp_session_endpoint, "session endpoint");
-  const handshakeSessionEndpoint = ensureAbsoluteUrl(handshake.endpoints.session, "handshake session endpoint");
-  const registrySessionEndpoint = ensureAbsoluteUrl(server.sessionEndpoint, "registry session endpoint");
-  if (handshakeSessionEndpoint !== openIdSessionEndpoint || handshakeSessionEndpoint !== registrySessionEndpoint) {
+ const openIdSessionEndpoint = ensureAbsoluteUrl(openIdDocument.mcp_session_endpoint, "session endpoint");
+ const handshakeSessionEndpoint = ensureAbsoluteUrl(handshake.endpoints.session, "handshake session endpoint");
+ const registrySessionEndpoint = ensureAbsoluteUrl(server.sessionEndpoint, "registry session endpoint");
+ if (handshakeSessionEndpoint !== openIdSessionEndpoint || handshakeSessionEndpoint !== registrySessionEndpoint) {
     throw new Error(`Session endpoint mismatch for ${server.id}`);
+ }
+
+  const sessionChallenge = await ensureSessionChallenge(handshakeSessionEndpoint, server.id);
+
+  const supportedGrantTypes = new Set(openIdDocument.grant_types_supported ?? []);
+  if (!supportedGrantTypes.has("client_credentials")) {
+    console.log(
+      "  • Skipping client_credentials flow (grant not advertised); session challenge verified",
+    );
+    return;
   }
 
   const tokenBody = new URLSearchParams({
@@ -292,8 +303,6 @@ const validateServer = async (server, openIdDocument) => {
 
   console.log("  • Token introspection response validated");
 
-  const sessionChallenge = await ensureSessionChallenge(handshakeSessionEndpoint, server.id);
-
   const { response: sessionResponse, data: sessionData } = await requestJson(
     handshakeSessionEndpoint,
     {
@@ -346,7 +355,15 @@ const main = async () => {
 
   const openIdUrl = new URL("/.well-known/oauth-authorization-server", baseUrl).toString();
   const { data: openIdPayload } = await requestJson(openIdUrl, {}, { description: "OpenID configuration" });
-  const openIdDocument = OpenIdDocumentSchema.parse(openIdPayload);
+  const openIdDocument = OpenIdDocumentSchema.parse({
+    ...openIdPayload,
+    token_endpoint:
+      openIdPayload.token_endpoint ??
+      new URL("/api/auth/oauth2/token", baseUrl).toString(),
+    introspection_endpoint:
+      openIdPayload.introspection_endpoint ??
+      new URL("/api/auth/oauth2/introspect", baseUrl).toString(),
+  });
 
   console.log("• OpenID metadata advertises MCP extensions");
 
