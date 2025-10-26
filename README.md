@@ -74,6 +74,8 @@ pnpm smoke:discovery -- --base-url=https://auth.onemainarmy.com
 
 In addition to the discovery smoke test, run the MCP compliance harness to validate the registry, handshake, and session endpoints:
 
+> Operators must follow the [MCP Onboarding Runbook](docs/integration/mcp-onboarding-runbook.md) before provisioning new clients. The runbook consolidates required environment variables, registry update workflow, rollback procedures, and the compliance CLI expectations described below.
+
 ```bash
 pnpm mcp:compliance -- --base-url=https://auth.onemainarmy.com
 ```

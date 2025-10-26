@@ -1,7 +1,7 @@
 ---
 title: BMM Workflow Status
 created: 2025-10-17
-updated: 2025-10-25
+updated: 2025-10-26
 project: better-auth-central
 field_type: brownfield
 project_type: backend
@@ -12,8 +12,8 @@ communication_language: English
 # Workflow Status
 
 **Current Phase:** 4-Implementation
-**Current Workflow:** review-story (Story 1.4)
-**Overall Progress:** 76%
+**Current Workflow:** story-done (Story 1.4)
+**Overall Progress:** 80%
 
 ## Planned Workflow Journey
 
@@ -32,9 +32,9 @@ communication_language: English
 
 ## Current Status
 
-**Current Step:** Story 1.4 implementation updated; awaiting senior review. Story 1.5 remains queued for development.
-**Next Step:** Hand off to DEV reviewer to run `review-story` for Story 1.4, then proceed to Story 1.5 implementation.
-**Next Command:** bmad dev review-story
+**Current Step:** Story 1.4 accepted and closed. Story 1.5 remains queued for development.
+**Next Step:** Kick off Story 1.5 implementation via `dev-story`, coordinating onboarding runbook work.
+**Next Command:** bmad dev develop
 
 ## Decisions Log
 
@@ -46,13 +46,11 @@ communication_language: English
 - **2025-10-25**: Story contexts generated for Stories 1.4 and 1.5 to unlock readiness review.
 
 ### Implementation Progress (Phase 4 Only)
-#### In Review
-- story-1.4.md – Enforce MCP compliance checks in CI (Status: In Review, Points: 3)
-
 #### Ready for Dev
 - story-1.5.md – Publish MCP onboarding runbook (Status: Ready, Points: 2)
 
 #### Done
+- story-1.4.md – Enforce MCP compliance checks in CI (Status: Done, Points: 3)
 - story-central-mcp-compatibility-1.md (Status: Done, Points: 5)
 - story-central-mcp-compatibility-2.md (Status: Done, Points: 5)
 - story-central-mcp-compatibility-3.md (Status: Done, Points: 3)
@@ -72,8 +70,8 @@ communication_language: English
 
 ### Next Action Required
 
-**What to do next:** Switch to DEV agent and run `review-story` for Story 1.4, then plan Story 1.5 development.
+**What to do next:** Switch to DEV agent and start `dev-story` for Story 1.5 to deliver the MCP onboarding runbook.
 
-**Command to run:** bmad dev review-story
+**Command to run:** bmad dev develop
 
 **Agent to load:** DEV agent (`bmad/bmm/agents/dev.md`)
