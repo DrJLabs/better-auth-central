@@ -29,6 +29,8 @@ const OpenIdSchema = Type.Intersect([
     issuer: Type.String(),
     authorization_endpoint: Type.String(),
     token_endpoint: Type.String(),
+    introspection_endpoint: Type.String(),
+    revocation_endpoint: Type.String(),
     consent_endpoint: Type.String(),
     discovery_endpoint: Type.String(),
   }),
@@ -174,6 +176,14 @@ describe("server", () => {
         "/api/auth/mcp/handshake",
         metadataBase,
       ).toString();
+      const expectedIntrospectionEndpoint = new URL(
+        "/api/auth/oauth2/introspect",
+        metadataBase,
+      ).toString();
+      const expectedRevocationEndpoint = new URL(
+        "/api/auth/oauth2/revoke",
+        metadataBase,
+      ).toString();
       const expectedServersMetadata = new URL(
         "/.well-known/mcp-servers.json",
         metadataBase,
@@ -184,6 +194,8 @@ describe("server", () => {
         registration_endpoint: "http://localhost:3000/api/auth/oauth2/register",
         authorization_endpoint: "http://localhost:3000/api/auth/oauth2/authorize",
         token_endpoint: "http://localhost:3000/api/auth/oauth2/token",
+        introspection_endpoint: expectedIntrospectionEndpoint,
+        revocation_endpoint: expectedRevocationEndpoint,
         consent_endpoint: "http://localhost:3000/consent",
         discovery_endpoint: "http://localhost:3000/.well-known/openid-configuration",
         mcp_session_endpoint: expectedSessionEndpoint,

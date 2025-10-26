@@ -120,6 +120,7 @@ describe("[ATDD] MCP compliance CLI (RED phase)", () => {
               authorization_endpoint: `${baseUrl}/oauth2/authorize`,
               token_endpoint: `${baseUrl}/oauth2/token`,
               introspection_endpoint: `${baseUrl}/oauth2/introspect`,
+              grant_types_supported: ["client_credentials"],
               mcp_session_endpoint: `${baseUrl}/api/auth/mcp/session`,
               mcp_handshake_endpoint: `${baseUrl}/api/auth/mcp/handshake`,
               mcp_servers_metadata: `${baseUrl}/.well-known/mcp-servers.json`,
