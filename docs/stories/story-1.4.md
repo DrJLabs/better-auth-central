@@ -1,6 +1,6 @@
 # Story 1.4: Enforce MCP compliance checks in CI
 
-Status: Review Passed
+Status: Done
 
 ## Story
 
@@ -93,6 +93,7 @@ TBD
 | 2025-10-26 | Restored session challenge assertion and expanded compliance CLI regression tests | Amelia |
 | 2025-10-26 | Senior Developer Review (AI) notes appended; session challenge coverage gap flagged | Amelia (Reviewer) |
 | 2025-10-26 | Senior Developer Review (AI) notes appended; outcome approved | Amelia (Reviewer) |
+| 2025-10-26 | Story marked done after CI compliance gate landed | Amelia |
 
 ## Senior Developer Review (AI)
 
