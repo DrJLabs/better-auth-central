@@ -27,6 +27,7 @@
 - [Project README](../README.md) - Top-level repository overview
 - [Workflow Status](./bmm-workflow-status.md) - Current BMAD workflow plan
 - [Auth Alignment Notes](./chatgpt-todo-auth-alignment.md) - Historical analysis notes
+- [MCP Onboarding Runbook](./integration/mcp-onboarding-runbook.md) - Operator guide for environment setup, compliance validation, rollback, and escalation.
 
 ## Getting Started
 
