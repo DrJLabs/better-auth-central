@@ -28,7 +28,9 @@ The table aggregates the MCP-specific variables from `.env.example` and `docs/in
 | `BETTER_AUTH_TRUSTED_ORIGINS` | Comma-separated list of allowed origins. | Defaults cover core apps; append the new tenant’s origin before onboarding. |
 | `OIDC_DYNAMIC_REGISTRATION` | Enables dynamic client registration flow. | `false` — enable only when onboarding requires it. |
 
-> Reference: `docs/integration/mcp-auth-checklist.md` remains the authoritative source for variable descriptions. This runbook provides sequencing and troubleshooting context.
+> The `<CLIENT>` suffix uses the client ID uppercased with non-alphanumeric characters replaced by underscores (for example, `my-app-1` becomes `MCP_COMPLIANCE_SECRET_MY_APP_1`).
+
+> Reference: This runbook expands on `docs/integration/mcp-auth-checklist.md` and captures the most current operational guidance.
 
 ## Onboarding Workflow
 
@@ -79,7 +81,7 @@ The table aggregates the MCP-specific variables from `.env.example` and `docs/in
      ```
 
    - When the target deployment advertises the `client_credentials` grant, the CLI prints additional lines for token and introspection validation. If the grant is absent, expect the “Skipping client_credentials flow” message shown above.
-   - If the runbook is executed in register mode (`pnpm mcp:compliance -- --base-url=... -- --register`), the script prints each registry entry without executing token/introspection assertions. Use this mode for sanity checks when compliance credentials are unavailable.
+   - Use `pnpm mcp:register -- --base-url=...` to print registry entries without running compliance assertions. Passing `--register` to `pnpm mcp:compliance` still executes the full validation suite and then prints a registry summary at the end.
 
 ## Compliance Failure Handling
 
@@ -124,7 +126,7 @@ Document the outcome in the incident tracker, noting which environment variables
 | --- | --- | --- | --- |
 | Compliance CLI fails after rollback or onboarding | Auth Platform on-call (PagerDuty: “Auth Platform Primary”) | Acknowledge within 15 minutes, coordinate fix + rerun compliance | Page SRE Duty Manager if no response within SLA |
 | Registry deployment blocked by infrastructure issues | SRE Duty Manager (PagerDuty: “Core SRE”) | Join bridge within 15 minutes, own infrastructure remediation | Escalate to Platform Engineering lead via escalation policy |
-| Regulatory exposure or data handling concern | Compliance Lead (email: compliance@better-auth.example) | Respond within 1 hour with mitigation guidance | Notify Legal liaison through Compliance distribution list |
+| Regulatory exposure or data handling concern | Compliance Lead (email: `compliance@better-auth.example`) | Respond within 1 hour with mitigation guidance | Notify Legal liaison through Compliance distribution list |
 
 Reference the on-call roster in the Ops portal to confirm current assignees before initiating a bridge. Always log escalations in the incident management system so postmortems capture context.
 
