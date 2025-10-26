@@ -37,7 +37,7 @@ The table aggregates the MCP-specific variables from `.env.example` and `docs/in
 1. **Preflight audit**
    - Confirm the target deployment is reachable and uses the correct base URL (`https://auth.<tenant-domain>` or staging equivalent).
    - Review outstanding TODOs or incidents; abort onboarding if there is an open MCP compliance failure.
-   - Gather tenant metadata: client ID, expected scopes, origin(s), redirect URI, and escalation contacts.
+  - Gather tenant metadata: client ID, expected scopes, origin(s), and redirect URI.
 
 2. **Update environment configuration**
    - Duplicate the existing `.env` file for the target environment and update the variables listed above.
@@ -116,18 +116,8 @@ Trigger the rollback flow if onboarding fails after registry changes, if complia
    - Run `pnpm mcp:register -- --base-url=<environment>` to confirm the client no longer appears.
    - Execute `pnpm mcp:compliance -- --base-url=<environment>`; the command should succeed or report “No servers registered” if you intentionally cleared the registry.
 6. **Communicate closure**
-   - Post final status in the Ops channel and open an incident review task if the rollback was triggered by a production issue.
+   - Record the rollback decision in your change log and capture any follow-up tasks for future sprints.
 
-Document the outcome in the incident tracker, noting which environment variables changed and which secrets were rotated.
-
-## Escalation Matrix
-
-| Scenario | Primary Contact | Response Expectation | Fallback |
-| --- | --- | --- | --- |
-| Compliance CLI fails after rollback or onboarding | Auth Platform on-call (PagerDuty: “Auth Platform Primary”) | Acknowledge within 15 minutes, coordinate fix + rerun compliance | Page SRE Duty Manager if no response within SLA |
-| Registry deployment blocked by infrastructure issues | SRE Duty Manager (PagerDuty: “Core SRE”) | Join bridge within 15 minutes, own infrastructure remediation | Escalate to Platform Engineering lead via escalation policy |
-| Regulatory exposure or data handling concern | Compliance Lead (email: `compliance@better-auth.example`) | Respond within 1 hour with mitigation guidance | Notify Legal liaison through Compliance distribution list |
-
-Reference the on-call roster in the Ops portal to confirm current assignees before initiating a bridge. Always log escalations in the incident management system so postmortems capture context.
+Document the outcome in your personal tracker, noting which environment variables changed and which secrets were rotated.
 
 Maintain this runbook alongside the integration checklist. Whenever the checklist changes, review this runbook to ensure both documents stay consistent.
