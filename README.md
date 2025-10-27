@@ -101,6 +101,7 @@ Configure these GitHub Actions secrets before enabling the job:
 - `MCP_COMPLIANCE_BASE_URL_MAIN`: base URL for the primary (main) deployment targeted by the compliance gate.
 - `MCP_COMPLIANCE_CLIENT_ID`: registered MCP client identifier used by the compliance harness.
 - `MCP_COMPLIANCE_SCOPE`: space-separated scopes expected by the compliance client (must align with the registry entry).
+- `MCP_COMPLIANCE_CLIENT_SECRET`: shared secret consumed by the compliance harness; store as a GitHub secret and mirror local `.env` usage.
 
 Reuse the compliance client secret described in the prerequisites section by storing it as a GitHub secret.
 

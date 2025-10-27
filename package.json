@@ -12,6 +12,7 @@
     "smoke:discovery": "node scripts/check-discovery.mjs",
     "mcp:compliance": "node scripts/mcp-compliance.mjs",
     "mcp:register": "node scripts/mcp-compliance.mjs --register",
+    "lint:docs": "node scripts/check-doc-parity.mjs",
     "pretest": "pnpm run build",
     "test": "node --test",
     "pretest:watch": "pnpm run build",

@@ -11,6 +11,7 @@ Routing guidance:
 | Date | Story | Epic | Type | Severity | Owner | Status | Notes |
 | ---- | ----- | ---- | ---- | -------- | ----- | ------ | ----- |
 | 2025-10-28 | 1.2 | 1 | Bug | High | Auth Platform | Done | Sanitized forwarded scope parameter before calling Better Auth so unauthorized scopes can't be minted (`src/routes/oauthRouter.ts`). |
-| 2025-10-28 | - | 1 | Enhancement | Medium | Platform DevOps | Open | Wire the MCP compliance CLI into CI (staging + main) so regressions block deploys; reuse `pnpm mcp:compliance` with staging base URL. |
-| 2025-10-28 | - | 1 | Process | Medium | Auth Ops | Open | Draft an MCP onboarding runbook (env vars, compliance steps, rollback guidance) for operators ahead of the next epic rollout. |
+| 2025-10-28 | - | 1 | Enhancement | Medium | Platform DevOps | Done | MCP compliance CLI job added via Story 1.4; CI now blocks regressions across staging + main. |
+| 2025-10-28 | - | 1 | Process | Medium | Auth Ops | Done | MCP onboarding runbook published via Story 1.5 with rollback guidance for solo operations. |
+| 2025-10-26 | - | 1 | Tooling | Medium | Platform DevOps | Done | Added automated README ↔ runbook parity lint (`pnpm lint:docs`) to prevent documentation drift (AI-4). |
 | 2025-10-26 | 1.4 | 1 | Bug | Medium | Platform DevOps | Done | Restored session challenge assertion and added tests covering grant omission in `scripts/mcp-compliance.mjs` + related suites. |

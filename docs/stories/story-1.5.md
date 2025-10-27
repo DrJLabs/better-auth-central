@@ -83,6 +83,7 @@ Codex GPT-5 (Amelia) via BMAD Dev workflow
 - Drafted and published `docs/integration/mcp-onboarding-runbook.md`, covering environment setup, registry workflow, compliance validation, and rollback procedures tailored for solo operations, aligned with `docs/integration/mcp-auth-checklist.md` and `docs/epics.md`.
 - Linked the runbook from `README.md` and `docs/index.md` so operators discover it alongside the compliance CLI guidance.
 - Ran `pnpm mcp:compliance -- --base-url=https://auth.onemainarmy.com` (success) and `pnpm test` (all suites passed) to validate instructions and guard against regressions.
+- Added `pnpm lint:docs` parity check to keep README and runbook guidance aligned.
 - Completion: 2025-10-25 — Definition of Done satisfied, tests passing, review approved.
 
 ### File List
@@ -104,6 +105,7 @@ Codex GPT-5 (Amelia) via BMAD Dev workflow
 | 2025-10-25 | Executed compliance CLI and aligned runbook guidance with live output | Amelia (Dev Agent) |
 | 2025-10-25 | Senior developer review approved | Amelia (Reviewer) |
 | 2025-10-25 | Story marked Done (Definition of Done complete) | Amelia (Dev Agent) |
+| 2025-10-26 | Added README ↔ runbook parity lint (`pnpm lint:docs`) | Amelia (Dev Agent) |
 
 ## Senior Developer Review (AI)
 
